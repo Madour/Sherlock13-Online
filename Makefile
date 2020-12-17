@@ -1,34 +1,69 @@
 CC=gcc
-CCFLAGS= -Wall -Wpedentic
-LIBFLAGS=
+CCFLAGS= -Wall -Wpedantic
+
+LIBFLAGS =  -lm -lpthread
+LIBSDL = -lSDL2 -lSDL2_image -lSDL2_ttf
 
 OBJ_DIR = ./obj
+BIN_DIR = ./bin
 
-CLIENT_SRC = $(wildcard client/*.c)
-CLIENT_INC = $(CLIENT_SRC:.c=.h)
-CLIENT_OBJ = $(patsubst client/%.c, $(OBJ_DIR)/client/%.o, $(CLIENT_SRC))
+COMMON_SRC = $(wildcard ./common/*.c)
+COMMON_INC = $(wildcard ./common/*.h)
+COMMON_OBJ = $(patsubst ./common/%.c, $(OBJ_DIR)/common/%.o, $(COMMON_SRC))
+
+CLIENT_SRC = $(wildcard ./client/*.c)
+CLIENT_INC = $(wildcard ./client/*.h)
+CLIENT_OBJ = $(patsubst ./client/%.c, $(OBJ_DIR)/client/%.o, $(CLIENT_SRC))
 CLIENT_TGT = client.exe
 
+SERVER_SRC = $(wildcard ./server/*.c)
+SERVER_INC = $(wildcard ./server/*.h)
+SERVER_OBJ = $(patsubst ./server/%.c, $(OBJ_DIR)/server/%.o, $(SERVER_SRC))
+SERVER_TGT = server.exe
 
-
-all: $(OBJ_DIR) $(CLIENT_TGT)
+all: $(OBJ_DIR) $(BIN_DIR) $(CLIENT_TGT) $(SERVER_TGT)
+	mv $(CLIENT_TGT) $(BIN_DIR)
+	mv $(SERVER_TGT) $(BIN_DIR)
 	
 print:
-	@echo $(CLIENT_SRC) $(CLIENT_INC)
+	@echo $(CLIENT_SRC) 
+	@echo $(CLIENT_INC)
 	@echo $(CLIENT_OBJ)
-	@echo $(OBJ_DIR)/client/%.o:
-	@echo $(SRC_DIR)/client/%.c $(SRC_DIR)/client/%.h
-	
+	@echo "-----------"
+	@echo $(COMMON_SRC) 
+	@echo $(COMMON_INC)
+	@echo $(COMMON_OBJ)
+	@echo "-----------"
+	@echo $(SERVER_SRC) 
+	@echo $(SERVER_INC)
+	@echo $(SERVER_OBJ)
+	@echo "-----------"
+
+
 $(OBJ_DIR):
 	mkdir -p $@
 	mkdir -p $@/client
+	mkdir -p $@/common
+	mkdir -p $@/server
 
-$(CLIENT_TGT): $(CLIENT_OBJ)
-	$(CC) $(LIBFLAGS) -o $@ $^ 
+$(BIN_DIR):
+	mkdir -p $@
+	cp -R client/assets $@/assets
 
-$(OBJ_DIR)/client/%.o: $(SRC_DIR)/client/%.c $(SRC_DIR)/client/%.h
+$(CLIENT_TGT): $(COMMON_OBJ) $(CLIENT_OBJ)
+	$(CC) $(CCFLAGS) -o $@ $^ $(LIBFLAGS) $(LIBSDL) 
+
+$(SERVER_TGT): $(COMMON_OBJ) $(SERVER_OBJ)
+	$(CC) $(CCFLAGS) -o $@ $^ $(LIBFLAGS) 
+
+$(OBJ_DIR)/client/%.o: ./client/%.c
 	$(CC) $(CCFLAGS) -o $@ -c $<
 
+$(OBJ_DIR)/common/%.o: ./common/%.c
+	$(CC) $(CCFLAGS) -o $@ -c $<
+
+$(OBJ_DIR)/server/%.o: ./server/%.c
+	$(CC) $(CCFLAGS) -o $@ -c $<
 
 .depend:
 	$(CC) -MM $(CLIENT_SRC) > $@
@@ -36,6 +71,7 @@ $(OBJ_DIR)/client/%.o: $(SRC_DIR)/client/%.c $(SRC_DIR)/client/%.h
 -include .depends
 
 clean:
-	rm $(CLIENT_TGT) $(OBJ_DIR)/*
+	rm -f $(BIN_DIR)/$(CLIENT_TGT) $(BIN_DIR)/$(SERVER_TGT) 
+	rm -rf $(OBJ_DIR)/*
 
 .PHONY: all clean

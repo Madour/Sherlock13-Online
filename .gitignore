@@ -5,6 +5,7 @@
 build
 0demo
 obj
+bin
 
 game
 *.o
