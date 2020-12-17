@@ -1,0 +1,12 @@
+.vscode
+.idea
+.git
+.github
+build
+0demo
+obj
+
+game
+*.o
+*.exe
+*.tgz
