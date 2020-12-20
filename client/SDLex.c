@@ -149,7 +149,7 @@ SDL_Rect SDLex_GridGetCellRect(SDLex_Grid* g, int cx, int cy) {
     }
     else if (cx < g->colomns_nb) {
         x = g->position.x + g->padding_topleft.x + cx*g->cell_size.x;
-        w = g->cell_size.x
+        w = g->cell_size.x;
     }
     else {
         x = g->position.x + g->padding_topleft.x + g->colomns_nb*g->cell_size.x;
@@ -162,7 +162,7 @@ SDL_Rect SDLex_GridGetCellRect(SDLex_Grid* g, int cx, int cy) {
     }
     else if (cy < g->rows_nb) {
         y = g->position.y + g->padding_topleft.y + cy*g->cell_size.y;
-        h = g->cell_size.y
+        h = g->cell_size.y;
     }
     else {
         y = g->position.y + g->padding_topleft.y + g->colomns_nb*g->cell_size.y;

@@ -63,25 +63,25 @@ void exit_server(int sig_no) {
 }
 
 void broadcast(GameLobby* lobby, char* msg) {
-    printf("[INFO] Broadcasting message to lobby %d : %s\n", lobby->index, msg);
+    printf("[INFO] Broadcasting message to lobby %d : \"%s\"\n", lobby->index, msg);
     for (int i = 0; i < lobby->players_nb; ++i) {
-        printf("      > Message sent to player %d\n", i);
+        printf("     > Message sent to player %d\n", i);
         write(lobby->players[i].client.sfd, msg, sizeof(char)*(strlen(msg)+1));
     }
+    printf(" \n");
 }
 
 void* manage_player_thread(void* player) {
     char buffer[256];
     int msg_size;
     GamePlayer* this_player = (GamePlayer*)player;
-    printf("Starting thread for %s \n", this_player->name);
     while(1) {
         memset(buffer, 0, sizeof(buffer));
 
         msg_size = read(this_player->client.sfd, buffer, sizeof(buffer));
         if (msg_size <= 0) {
             printf("[INFO] Failed to read from client %s:%u\n", this_player->client.ip, this_player->client.port);
-            printf("[INFO] Closing connection with player %s from lobby %d.\n", this_player->name, this_player->lobby->index);
+            printf("[INFO] Closing connection with player %s from lobby %d.\n\n", this_player->name, this_player->lobby->index);
 
             break;
         }
@@ -91,7 +91,7 @@ void* manage_player_thread(void* player) {
     }
     close(this_player->client.sfd);
     this_player->lobby->players_nb--;
-    pthread_exit(pthread_self);
+    pthread_exit(NULL);
 }
 
 int main(int argc, char* argv[]) {
@@ -100,7 +100,7 @@ int main(int argc, char* argv[]) {
         return EXIT_SUCCESS;
     }
     if (!isUInt(argv[1])) {
-        fprintf(stderr, "Error : Argument <port_number> must be an unsigned int.\n");
+        fprintf(stderr, "[Error] Argument <port_number> must be an unsigned int.\n");
         return EXIT_FAILURE;
     }
 
@@ -113,7 +113,7 @@ int main(int argc, char* argv[]) {
     // create socket
     server_sfd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_sfd < 0) {
-        fprintf(stderr, "Error : failed to create socket.\n");
+        fprintf(stderr, "[Error] Failed to create socket.\n");
         return EXIT_FAILURE;
     }
 
@@ -128,14 +128,14 @@ int main(int argc, char* argv[]) {
 
     // bind server socket
     if (bind(server_sfd, server_ai->ai_addr, server_ai->ai_addrlen)) {
-        fprintf(stderr, "Error : socket bind failed.\n");
+        fprintf(stderr, "[Error] Socket bind failed.\n");
         return EXIT_FAILURE;
     }
 
     // queue up to 500 connections
     listen(server_sfd, 500);
     printf(
-        "[INFO] Server at %s listening on port %u\n",
+        "[INFO] Server at %s listening on port %u\n\n",
         inet_ntoa(((struct sockaddr_in*)server_ai->ai_addr)->sin_addr),
         ntohs(((struct sockaddr_in*)server_ai->ai_addr)->sin_port)
     );
@@ -152,9 +152,10 @@ int main(int argc, char* argv[]) {
         unsigned int len = sizeof(client_addr);
         int client_sfd = accept(server_sfd, (struct sockaddr*)&client_addr, &len);
         if (client_sfd < 0) {
-            fprintf(stderr, "Error : server accept failed.\n");
+            fprintf(stderr, "[Error] Server accept failed.\n");
             return EXIT_FAILURE;
         }
+        printf("[INFO] Accepting a connection from %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
         // search for an available lobby
         int lobby_index=0;
@@ -169,11 +170,10 @@ int main(int argc, char* argv[]) {
 
         // no available lobbies, skip this client
         if (lobby_index == -1) {
-            printf("No available lobbies ! \n");
+            printf("[INFO] No available lobbies ! Closing connection with client.\n");
             close(client_sfd);
             continue;
         }
-        printf("Found lobby %d available. \n", lobby_index);
 
         GameLobby* lobby = &lobbies_array[lobby_index];
 
@@ -198,11 +198,13 @@ int main(int argc, char* argv[]) {
             // send OK message to tell client connection was successful
             write(client_sfd, "ok", 3);
 
-            printf("[INFO] Player %s is now connected from %s:%u. \n", new_player->name, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+            printf("     > Client name : \"%s\"\n     > Joined lobby number %d\n\n", new_player->name, lobby_index);
 
             // create thread for the newly connected player
-            pthread_t thread_fd;
-            pthread_create(&thread_fd, NULL, manage_player_thread, new_player);
+            pthread_t thread;
+            pthread_create(&thread, NULL, manage_player_thread, new_player);
+            printf("[INFO] Started thread for player \"%s\" (%ld) \n\n", new_player->name, thread);
+
 
             lobby->players_nb++;
 
@@ -211,7 +213,7 @@ int main(int argc, char* argv[]) {
             sprintf(buffer, "%d", lobby->players_nb);
             broadcast(lobby, buffer);
 
-            printf("[INFO] Number of players connected to lobby %d : %d\n", lobby_index, lobby->players_nb);
+            printf("[INFO] Number of players connected to lobby %d : %d\n\n", lobby_index, lobby->players_nb);
 
             if (lobby->players_nb == 4) {
                 lobbies_states |= 1 << lobby_index;
