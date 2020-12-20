@@ -141,43 +141,34 @@ void SDLex_RenderDrawGrid(SDL_Renderer* renderer, SDLex_Grid* g) {
 }
 
 SDL_Rect SDLex_GridGetCellRect(SDLex_Grid* g, int cx, int cy) {
-    int offsetx = g->padding_topleft.x;
-    int offsety = g->padding_topleft.y;
+    int x, y, w, h;
 
-    int x, y, w = g->cell_size.x, h = g->cell_size.y;
-
-    if (cx == -1 && g->padding_topleft.x > 0) {
-        x = g->position.x; 
+    if (cx == -1) {
+        x = g->position.x;
         w = g->padding_topleft.x;
-    } else {
-        x = 0;
-        w = g->cell_size.x;
     }
-    if (cy == -1 && g->padding_topleft.y > 0) {
-        y = g->position.y; 
-        h = g->padding_topleft.y;
-    } else {
-        y = 0;
-        h = g->cell_size.y;
+    else if (cx < g->colomns_nb) {
+        x = g->position.x + g->padding_topleft.x + cx*g->cell_size.x;
+        w = g->cell_size.x
     }
-    if (cx >= g->colomns_nb && g->padding_bottomright.x > 0) {
-        x = g->position.x + g->padding_topleft.x + g->cell_size.x*g->colomns_nb;
+    else {
+        x = g->position.x + g->padding_topleft.x + g->colomns_nb*g->cell_size.x;
         w = g->padding_bottomright.x;
-    } else {
-        x = g->position.x + g->padding_topleft.x + g->cell_size.x*(g->colomns_nb-1);
-        w = g->cell_size.x;
     }
-    if (cy >= g->rows_nb && g->padding_bottomright.y > 0) {
-        y = g->position.y + g->padding_topleft.y + g->cell_size.y*g->rows_nb;
+
+    if (cy == -1) {
+        y = g->position.y;
+        h = g->padding_topleft.y;
+    }
+    else if (cy < g->rows_nb) {
+        y = g->position.y + g->padding_topleft.y + cy*g->cell_size.y;
+        h = g->cell_size.y
+    }
+    else {
+        y = g->position.y + g->padding_topleft.y + g->colomns_nb*g->cell_size.y;
         h = g->padding_bottomright.y;
-    } else {
-        y = g->position.y + g->padding_topleft.y + g->cell_size.y*(g->rows_nb-1);
-        h = g->cell_size.y;
     }
-    if (0 <= cx && cx < g->colomns_nb && 0 <= cy && cy < g->rows_nb) {
-        x = g->cell_size.x*cx;
-        y = g->cell_size.y*cy;
-    }
+
     return (SDL_Rect){x, y, w, h};
 
 }

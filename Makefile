@@ -1,21 +1,29 @@
 CC=gcc
 CCFLAGS= -Wall -Wpedantic
 
+# include folders
+INCFLAGS = -Icommon
+# libraries
 LIBFLAGS =  -lm -lpthread
+# SDL2 only for client
 LIBSDL = -lSDL2 -lSDL2_image -lSDL2_ttf
 
+# obj files and binaries output directories
 OBJ_DIR = ./obj
 BIN_DIR = ./bin
 
+# Common files to client and server 
 COMMON_SRC = $(wildcard ./common/*.c)
 COMMON_INC = $(wildcard ./common/*.h)
 COMMON_OBJ = $(patsubst ./common/%.c, $(OBJ_DIR)/common/%.o, $(COMMON_SRC))
 
+# client target
 CLIENT_SRC = $(wildcard ./client/*.c)
 CLIENT_INC = $(wildcard ./client/*.h)
 CLIENT_OBJ = $(patsubst ./client/%.c, $(OBJ_DIR)/client/%.o, $(CLIENT_SRC))
 CLIENT_TGT = client.exe
 
+# server target
 SERVER_SRC = $(wildcard ./server/*.c)
 SERVER_INC = $(wildcard ./server/*.h)
 SERVER_OBJ = $(patsubst ./server/%.c, $(OBJ_DIR)/server/%.o, $(SERVER_SRC))
@@ -39,8 +47,8 @@ print:
 	@echo $(SERVER_OBJ)
 	@echo "-----------"
 
-
-$(OBJ_DIR):
+# always execute this target
+$(OBJ_DIR): FORCE
 	mkdir -p $@
 	mkdir -p $@/client
 	mkdir -p $@/common
@@ -57,13 +65,13 @@ $(SERVER_TGT): $(COMMON_OBJ) $(SERVER_OBJ)
 	$(CC) $(CCFLAGS) -o $@ $^ $(LIBFLAGS) 
 
 $(OBJ_DIR)/client/%.o: ./client/%.c
-	$(CC) $(CCFLAGS) -o $@ -c $<
+	$(CC) $(CCFLAGS) -o $@ -c $< $(INCFLAGS) 
 
 $(OBJ_DIR)/common/%.o: ./common/%.c
-	$(CC) $(CCFLAGS) -o $@ -c $<
+	$(CC) $(CCFLAGS) -o $@ -c $< $(INCFLAGS) 
 
 $(OBJ_DIR)/server/%.o: ./server/%.c
-	$(CC) $(CCFLAGS) -o $@ -c $<
+	$(CC) $(CCFLAGS) -o $@ -c $< $(INCFLAGS) 
 
 .depend:
 	$(CC) -MM $(CLIENT_SRC) > $@
@@ -75,3 +83,5 @@ clean:
 	rm -rf $(OBJ_DIR)/*
 
 .PHONY: all clean
+
+FORCE: ;

@@ -62,7 +62,7 @@ void* receive_server_msgs_thread(void* args) {
                 break;
         }
     }
-    pthread_exit(pthread_self);
+    pthread_exit(NULL);
 }
 
 int main(int argc, char* argv[]) {
@@ -257,6 +257,7 @@ int main(int argc, char* argv[]) {
                 break;
             }
         }
+
         // check if hovering/selecting a player name cell
         for (int i = 1; i < grid1.rows_nb; ++i) {
             cell = SDLex_GridGetCellRect(&grid1, -1, i);
@@ -269,6 +270,7 @@ int main(int argc, char* argv[]) {
         }
         if (selected_item > -1 || selected_player > -1)
             selected_character = -1;
+
         // check if hovering/selecting a character name cell
         for (int i = 0; i < grid2.rows_nb; ++i) {
             cell = SDLex_GridGetCellRect(&grid2, 0, i);
@@ -281,6 +283,7 @@ int main(int argc, char* argv[]) {
         }
         if (selected_character > -1)
             selected_item = selected_player = -1;
+
         // check if hovering/selecting check mark cell
         for (int i = 0; i < grid2.rows_nb; ++i) {
             cell = SDLex_GridGetCellRect(&grid2, 1, i);
