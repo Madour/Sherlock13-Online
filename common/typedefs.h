@@ -4,7 +4,8 @@
 typedef enum MsgCode {
     WaitingPlayers='w',
     GameStart='g',
-    PlayerTurn='p'
+    PlayerTurn='p',
+    QuitLobby='q',
 } MsgCode;
 
 #endif//TYPEDEFS_H 

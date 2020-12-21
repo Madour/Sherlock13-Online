@@ -22,8 +22,11 @@
 #define WINDOW_W 1024
 #define WINDOW_H 768
 
+char* host_name;
+char* port;
 int socket_fd = -1;
 Game game;
+int my_index;
 
 volatile bool text_need_update = false;
 
@@ -37,7 +40,7 @@ void* receive_server_msgs_thread(void* args) {
             game.connected = false;
             break;
         }
-        printf("[INFO] Read from server : \"%s\"\n", buffer);
+        printf("[%s:%s] > \"%s\"\n", host_name, port, buffer);
         switch (buffer[0]) {
 
             case (int)WaitingPlayers:
@@ -48,6 +51,14 @@ void* receive_server_msgs_thread(void* args) {
                 break;
 
             case (int)GameStart:
+                printf("Game started !\n");
+                break;
+
+            case (int)QuitLobby:
+                game.connected = false;
+                SDLex_DestroyText(game.texts.player_names[my_index]);
+                game.texts.player_names[my_index] = NULL;
+                //write(socket_fd, "ok", sizeof(char)*3);
                 break;
 
             default:
@@ -56,6 +67,7 @@ void* receive_server_msgs_thread(void* args) {
 
         }
     }
+    close(socket_fd);
     pthread_exit(NULL);
 }
 
@@ -69,19 +81,13 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
-    char* host_name = argv[1];
-    char* port = argv[2];
+    host_name = argv[1];
+    port = argv[2];
     char* player_name = argv[3];
     if (strlen(player_name) > 32)
         player_name[32] = '\0';
 
     printf("Player %s\n", player_name);
-
-    socket_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (socket_fd < 0) {
-        fprintf(stderr, "Error : failed to create socket\n");
-        return EXIT_FAILURE;
-    }
 
     struct addrinfo* server_ai;
     struct addrinfo hints = {
@@ -180,6 +186,11 @@ int main(int argc, char* argv[]) {
             if (!game.connected) {
                 SDL_Rect cell = SDLex_GridGetCellRect(&game.grid1, -1, 0);
                 if (SDL_PointInRect(&game.mouse_pos, &cell)) {
+                    socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+                    if (socket_fd < 0) {
+                        fprintf(stderr, "Error : failed to create socket\n");
+                        return EXIT_FAILURE;
+                    }
                     if (connect(socket_fd, server_ai->ai_addr, server_ai->ai_addrlen)) {
                         fprintf(stderr, "Error : connection with the server failed.\n");
                         perror("connect");
@@ -193,11 +204,13 @@ int main(int argc, char* argv[]) {
                     // reading server message : my_index
                     char buffer[2];
                     msg_size = read(socket_fd, buffer, sizeof(buffer));
-                    printf("[INFO] Received server response : %s\n", buffer);
-                    int index = buffer[0] - '0';
-                    strcpy(game.players[index].name, player_name);
-                    game.players[index].index = index;
-                    game.players_nb = 4-index;
+                    printf("[%s:%s] > \"%s\"\n", host_name, port, buffer);
+                    my_index = buffer[0] - '0';
+                    strcpy(game.players[my_index].name, player_name);
+                    game.players[my_index].index = my_index;
+                    game.players_nb = 4-my_index;
+                    game.texts.player_names[my_index] = SDLex_CreateText(renderer, player_name, game.font);
+                    SDLex_TextSetPosition(game.texts.player_names[my_index], game.grid1.position.x + 20 , game.grid1.position.y+10+(game.grid1.cell_size.y)*(my_index+1));
                     text_need_update = true;
 
                     pthread_t thread;

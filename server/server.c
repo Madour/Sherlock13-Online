@@ -79,23 +79,41 @@ void* manage_player_thread(void* player) {
     GamePlayer* this_player = (GamePlayer*)player;
     while(1) {
         memset(buffer, 0, sizeof(buffer));
-
+        if (this_player->leave) {
+            printf("[INFO] Player %s leaving lobby %d\n", this_player->name, this_player->lobby->index);
+            break;
+        }
         msg_size = read(this_player->client.sfd, buffer, sizeof(buffer));
+        if (this_player->leave) {
+            printf("[INFO] Player %s leaving lobby %d\n", this_player->name, this_player->lobby->index);
+            break;
+        }
         if (msg_size <= 0) {
             printf("[INFO] Failed to read from client %s:%u\n", this_player->client.ip, this_player->client.port);
             printf("[INFO] Closing connection with player %s from lobby %d.\n\n", this_player->name, this_player->lobby->index);
-            this_player->lobby->players_nb--;
 
             // tell other players in lobby that this_player quit
-            if (this_player->lobby->players_nb != 4) {
+            if (1 < this_player->lobby->players_nb && this_player->lobby->players_nb < 4) {
                 buffer[0] = WaitingPlayers;
-                buffer[1] = this_player->lobby->players_nb;
+                buffer[1] = this_player->lobby->players_nb+'0';
                 buffer[2] = '\0';
+                broadcast(this_player->lobby, buffer, 3);
+            }
+            else {
+                buffer[0] = (char)QuitLobby;
+                buffer[1] = '\0';
+                broadcast(this_player->lobby, buffer, 2);
+                for (int i = 0; i < 4; ++i) {
+                    this_player->lobby->players[i].leave = true;
+                }
+                this_player->lobby->players_nb = 0;
+                lobbies_states &= 0 << this_player->lobby->index ;
             }
             break;
         }
         printf("[%s:%d] %s > %s \n", this_player->client.ip, this_player->client.port, this_player->name, buffer);
     }
+
     close(this_player->client.sfd);
     pthread_exit(NULL);
 }
@@ -197,7 +215,7 @@ int main(int argc, char* argv[]) {
             new_player->client.port = ntohs(client_addr.sin_port);
             
             // first message received from new client is player name
-            char buffer[40];
+            char buffer[256];
             read(client_sfd, buffer, sizeof(buffer));
             strcpy(new_player->name, buffer);
 
@@ -216,17 +234,28 @@ int main(int argc, char* argv[]) {
 
             lobby->players_nb++;
 
-            // broadcast the number of connected players to all players in lobby
-            buffer[0] = (char)WaitingPlayers;
-            buffer[1] = (char)lobby->players_nb+'0';
-            buffer[2] = '\0';
-            broadcast(lobby, buffer, 3);
-
             printf("[INFO] Number of players connected to lobby %d : %d\n\n", lobby_index, lobby->players_nb);
 
-            if (lobby->players_nb == 4) {
+            if (lobby->players_nb < 4) {
+                // broadcast the number of connected players to all players in lobby
+                buffer[0] = (char)WaitingPlayers;
+                buffer[1] = (char)lobby->players_nb+'0';
+                buffer[2] = '\0';
+                broadcast(lobby, buffer, 3);
+            }
+            else if (lobby->players_nb == 4) {
                 lobbies_states |= 1 << lobby_index;
                 
+                buffer[0] = (char)GameStart;
+                int current_i = 1;
+                for (int i = 0; i < 4; ++i) {
+                    int name_len = strlen(lobby->players[i].name);
+                    buffer[current_i] = name_len+'0';
+                    strcpy(&buffer[current_i+1], lobby->players[i].name);
+                    current_i += name_len+1;
+                }
+                buffer[current_i] = '\0';
+                broadcast(lobby, buffer, current_i+1);
                 // send GameStart message
                 
                 printf("Lobby %d Game started !\n", lobby_index);

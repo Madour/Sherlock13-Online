@@ -124,6 +124,10 @@ void Game_InitTexts(Game* game) {
 
     game->texts.wait_players = SDLex_CreateText(game->renderer, "Waiting for 3 players...", game->font);
     SDLex_TextSetPosition(game->texts.wait_players, game->sprites.btn_connect.position.x, game->sprites.btn_connect.position.y+10);
+
+    for (int i = 0; i < 4; ++i) {
+        game->texts.player_names[i] = NULL;
+    }
 }
 
 void Game_Update(Game* game) {
@@ -272,6 +276,12 @@ void Game_Render(Game* game) {
             }
         }
     }
+
+    // draw player names
+    for (int i = 0; i < 4; ++i) {
+        if (game->texts.player_names[i] != NULL)
+            SDLex_RenderDrawText(renderer, game->texts.player_names[i]);
+    }
     
     if (!game->connected)
         SDLex_RenderDrawSprite(renderer, &game->sprites.btn_connect);
@@ -300,6 +310,10 @@ void Game_Terminate(Game* game) {
     SDL_DestroyTexture(game->textures.btn_connect);
     SDL_DestroyTexture(game->textures.btn_go);
 
+    for (int i = 0; i < 4; ++i) {
+        if (game->texts.player_names[i] != NULL)
+            SDLex_DestroyText(game->texts.player_names[i]);
+    }
     SDLex_DestroyText(game->texts.wait_players);
 
     TTF_CloseFont(game->font);
