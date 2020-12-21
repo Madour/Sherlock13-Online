@@ -82,7 +82,7 @@ SDLex_Text* SDLex_CreateText(SDL_Renderer* renderer, char* string, TTF_Font* fon
     SDL_FreeSurface(text_surf);
     
     SDLex_Text* new_text = malloc(sizeof(SDLex_Text));
-    new_text->drawable = (SDLex_Sprite){text_tex, {}, {0, 0}, {1, 1}};
+    new_text->drawable = (SDLex_Sprite){text_tex, {0, 0, 0, 0}, {0, 0}, {1, 1}};
 
     return new_text;
 }

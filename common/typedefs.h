@@ -2,8 +2,9 @@
 #define TYPEDEFS_H
 
 typedef enum MsgCode {
-    GameStart = 0,
-    PlayerTurn
+    WaitingPlayers='w',
+    GameStart='g',
+    PlayerTurn='p'
 } MsgCode;
 
 #endif//TYPEDEFS_H 

@@ -17,6 +17,7 @@
 #include <sched.h>
 
 #include "utils.h"
+#include "typedefs.h"
 
 #define MAX_LOBBIES 32
 
@@ -62,11 +63,12 @@ void exit_server(int sig_no) {
     kill(getpid(), SIGINT);
 }
 
-void broadcast(GameLobby* lobby, char* msg) {
+void broadcast(GameLobby* lobby, char* msg, unsigned int size) {
     printf("[INFO] Broadcasting message to lobby %d : \"%s\"\n", lobby->index, msg);
+
     for (int i = 0; i < lobby->players_nb; ++i) {
         printf("     > Message sent to player %d\n", i);
-        write(lobby->players[i].client.sfd, msg, sizeof(char)*(strlen(msg)+1));
+        write(lobby->players[i].client.sfd, msg, sizeof(char)*size);
     }
     printf(" \n");
 }
@@ -82,15 +84,19 @@ void* manage_player_thread(void* player) {
         if (msg_size <= 0) {
             printf("[INFO] Failed to read from client %s:%u\n", this_player->client.ip, this_player->client.port);
             printf("[INFO] Closing connection with player %s from lobby %d.\n\n", this_player->name, this_player->lobby->index);
+            this_player->lobby->players_nb--;
 
+            // tell other players in lobby that this_player quit
+            if (this_player->lobby->players_nb != 4) {
+                buffer[0] = WaitingPlayers;
+                buffer[1] = this_player->lobby->players_nb;
+                buffer[2] = '\0';
+            }
             break;
         }
         printf("[%s:%d] %s > %s \n", this_player->client.ip, this_player->client.port, this_player->name, buffer);
-
-        // sched_yield();
     }
     close(this_player->client.sfd);
-    this_player->lobby->players_nb--;
     pthread_exit(NULL);
 }
 
@@ -195,8 +201,10 @@ int main(int argc, char* argv[]) {
             read(client_sfd, buffer, sizeof(buffer));
             strcpy(new_player->name, buffer);
 
-            // send OK message to tell client connection was successful
-            write(client_sfd, "ok", 3);
+            // send player index in the lobby
+            buffer[0] = new_player->index+'0';
+            buffer[1] = '\0';
+            write(client_sfd, buffer, 2);
 
             printf("     > Client name : \"%s\"\n     > Joined lobby number %d\n\n", new_player->name, lobby_index);
 
@@ -209,9 +217,10 @@ int main(int argc, char* argv[]) {
             lobby->players_nb++;
 
             // broadcast the number of connected players to all players in lobby
-            memset(buffer, 0, sizeof(buffer));
-            sprintf(buffer, "%d", lobby->players_nb);
-            broadcast(lobby, buffer);
+            buffer[0] = (char)WaitingPlayers;
+            buffer[1] = (char)lobby->players_nb+'0';
+            buffer[2] = '\0';
+            broadcast(lobby, buffer, 3);
 
             printf("[INFO] Number of players connected to lobby %d : %d\n\n", lobby_index, lobby->players_nb);
 

@@ -21,6 +21,8 @@ extern const SDL_Color SDL_ex_YELLOW;
 extern const SDL_Color SDL_ex_MAGENTA;
 extern const SDL_Color SDL_ex_CYAN;
 
+//---------------TEXTURE---------------------------//
+
 /**
  * @brief Load a Texture from a file
  * 
@@ -33,6 +35,10 @@ SDL_Texture* SDLex_LoadTextureFromFile(SDL_Renderer* renderer, const char* filen
 
 SDL_Point SDLex_GetTextureSize(SDL_Texture* texture);
 
+//------------------------------------------------//
+
+
+//---------------SPRITE---------------------------//
 
 /**
  * @brief Represents a Sprite
@@ -56,6 +62,10 @@ typedef struct SDLex_Sprite {
 void SDLex_RenderDrawSprite(SDL_Renderer* renderer, SDLex_Sprite* sprite);
 void SDLex_RenderDrawSpriteAt(SDL_Renderer* renderer, SDLex_Sprite* sprite, SDL_Point pos);
 
+//------------------------------------------------//
+
+
+//---------------TEXT---------------------------//
 
 typedef struct SDLex_Text {
     SDLex_Sprite drawable;
@@ -72,6 +82,10 @@ void SDLex_RenderDrawTextAt(SDL_Renderer*, SDLex_Text* text, SDL_Point pos);
 
 void SDLex_DestroyText(SDLex_Text* text);
 
+//------------------------------------------------//
+
+
+//---------------GRID---------------------------//
 
 typedef struct SDLex_Grid {
     SDL_Point position;
@@ -90,5 +104,7 @@ SDL_Rect SDLex_GridGetOutline(SDLex_Grid* grid);
 void SDLex_RenderDrawGrid(SDL_Renderer*, SDLex_Grid* grid);
 
 SDL_Rect SDLex_GridGetCellRect(SDLex_Grid* grid, int cx, int cy);
+
+//------------------------------------------------//
 
 #endif//SDL_EX_H
