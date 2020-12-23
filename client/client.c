@@ -14,10 +14,10 @@
 #include <pthread.h>
 #include <sched.h>
 
-#include "SDLex.h"
-#include "game.h"
-#include "utils.h"
-#include "typedefs.h"
+#include "common/utils.h"
+#include "common/typedefs.h"
+#include "client/SDLex.h"
+#include "client/game.h"
 
 #define WINDOW_W 1024
 #define WINDOW_H 768
@@ -39,7 +39,7 @@ void* receive_server_msgs_thread(void* args) {
             game.connected = false;
             break;
         }
-        printf("[%s:%s] > \"%s\"\n", host_name, port, buffer);
+        printf("[%s:%s] > \"%s\"\n\n", host_name, port, buffer);
         int current_i = 1;
         int len;
         switch (buffer[0]) {
@@ -48,7 +48,7 @@ void* receive_server_msgs_thread(void* args) {
                 game.players_nb = buffer[1]-'0';
                 text_need_update = true;
                 if (game.players_nb < 4)
-                    printf("Waiting for %d more player%s\n", 4-game.players_nb, game.players_nb>=3 ? "":"s");
+                    printf("Waiting for %d more player%s\n\n", 4-game.players_nb, game.players_nb>=3 ? "":"s");
                 break;
 
             case (int)GameStart:
@@ -62,7 +62,7 @@ void* receive_server_msgs_thread(void* args) {
                     game.texts.player_names[i] = SDLex_CreateText(game.renderer, game.players[i].name, game.font);
                     current_i += len+1;
                 }
-                printf("Game started !\n");
+                printf("Game started !\n\n");
                 break;
 
             case (int)QuitLobby:
@@ -70,14 +70,12 @@ void* receive_server_msgs_thread(void* args) {
                 for (int i = 0; i < 4; ++i) {
                     if (game.texts.player_names[i] != NULL)
                         SDLex_DestroyText(game.texts.player_names[i]);
-                    else
-                        printf("Player name text %d is NULL !!\n", i);
                     game.texts.player_names[i] = NULL;
                 }
                 break;
 
             default:
-                printf("Command not recognized\n");
+                printf("Command not recognized\n\n");
                 break;
 
         }
@@ -92,7 +90,7 @@ int main(int argc, char* argv[]) {
         return EXIT_SUCCESS;
     }
     if (!isUInt(argv[2])) {
-        fprintf(stderr, "Error : Argument <port_number> must be an unsigned int.\n");
+        fprintf(stderr, "[ERROR] Argument <port_number> must be an unsigned int.\n");
         return EXIT_FAILURE;
     }
 
@@ -203,18 +201,18 @@ int main(int argc, char* argv[]) {
                 if (SDL_PointInRect(&game.mouse_pos, &cell)) {
                     socket_fd = socket(AF_INET, SOCK_STREAM, 0);
                     if (socket_fd < 0) {
-                        fprintf(stderr, "Error : failed to create socket\n");
+                        fprintf(stderr, "[ERROR] Failed to create socket\n");
                         return EXIT_FAILURE;
                     }
                     if (connect(socket_fd, server_ai->ai_addr, server_ai->ai_addrlen)) {
-                        fprintf(stderr, "Error : connection with the server failed.\n");
+                        fprintf(stderr, "[ERROR] Connection with the server failed.\n");
                         perror("connect");
                         return 1;
                     }
                     game.connected = true;
                     printf("[INFO] Connected to server %s:%u \n", inet_ntoa(((struct sockaddr_in*)server_ai->ai_addr)->sin_addr), ntohs(((struct sockaddr_in*)server_ai->ai_addr)->sin_port));
                     int msg_size = write(socket_fd, player_name, sizeof(char)*32);
-                    printf("[INFO] Sent message of size %d : %s\n", msg_size, player_name);
+                    printf(" > \"%s\"\n", player_name);
 
                     // reading server message : game.my_index
                     char buffer[2];
@@ -244,7 +242,7 @@ int main(int argc, char* argv[]) {
                     game.connected = false;
                 }
                 else {
-                    printf("[INFO] Sent message of size %d : %s\n", msg_size, buffer);
+                    printf(" > \"%s\"\n", player_name);
                 }
             }
         }

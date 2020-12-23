@@ -2,7 +2,7 @@ CC=gcc
 CCFLAGS= -Wall -Wpedantic
 
 # include folders
-INCFLAGS = -Icommon
+INCFLAGS = -I.
 # libraries
 LIBFLAGS =  -lm -lpthread
 # SDL2 only for client

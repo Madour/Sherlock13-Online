@@ -16,35 +16,12 @@
 #include <pthread.h>
 #include <sched.h>
 
-#include "utils.h"
-#include "typedefs.h"
-
-#define MAX_LOBBIES 32
-
-typedef struct GameClient {
-    int sfd;
-    char ip[32];
-    int port;
-} GameClient;
-
-struct GameLobby;
-
-typedef struct GamePlayer {
-    GameClient client;
-    char name[32];
-    int index;
-    bool leave;
-    struct GameLobby* lobby;
-} GamePlayer;
-
-typedef struct GameLobby {
-    int index;
-    GamePlayer players[4];
-    int players_nb;
-} GameLobby;
+#include "common/utils.h"
+#include "common/typedefs.h"
+#include "server/lobby.h"
 
 
-GameLobby lobbies_array[MAX_LOBBIES];
+Lobby lobbies_array[MAX_LOBBIES];
 int lobbies_states=0; // bit i set to 1 = lobby i is full, maximum of 32 lobbies
 
 int server_sfd = -1;
@@ -63,20 +40,11 @@ void exit_server(int sig_no) {
     kill(getpid(), SIGINT);
 }
 
-void broadcast(GameLobby* lobby, char* msg, unsigned int size) {
-    printf("[INFO] Broadcasting message to lobby %d : \"%s\"\n", lobby->index, msg);
-
-    for (int i = 0; i < lobby->players_nb; ++i) {
-        printf("     > Message sent to player %d\n", i);
-        write(lobby->players[i].client.sfd, msg, sizeof(char)*size);
-    }
-    printf(" \n");
-}
 
 void* manage_player_thread(void* player) {
     char buffer[256];
     int msg_size;
-    GamePlayer* this_player = (GamePlayer*)player;
+    Player* this_player = (Player*)player;
     while(1) {
         memset(buffer, 0, sizeof(buffer));
         if (this_player->leave) {
@@ -166,7 +134,7 @@ int main(int argc, char* argv[]) {
     
  
     // reset all lobbies
-    memset(lobbies_array, 0, sizeof(GameLobby)*MAX_LOBBIES);
+    memset(lobbies_array, 0, sizeof(Lobby)*MAX_LOBBIES);
     for (int i = 0; i < MAX_LOBBIES; i++)
         lobbies_array[i].index = i;
      
@@ -199,12 +167,12 @@ int main(int argc, char* argv[]) {
             continue;
         }
 
-        GameLobby* lobby = &lobbies_array[lobby_index];
+        Lobby* lobby = &lobbies_array[lobby_index];
 
         if (lobby->players_nb < 4) {
             
             // get player pointer
-            GamePlayer* new_player = &lobby->players[lobby->players_nb];
+            Player* new_player = &lobby->players[lobby->players_nb];
             
             // fill new player info
             new_player->lobby = lobby;

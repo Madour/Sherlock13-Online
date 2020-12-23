@@ -1,4 +1,4 @@
-#include "game.h"
+#include "client/game.h"
 
 
 static void Game_InitTextures(Game* game);
