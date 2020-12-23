@@ -26,7 +26,6 @@ char* host_name;
 char* port;
 int socket_fd = -1;
 Game game;
-int my_index;
 
 volatile bool text_need_update = false;
 
@@ -41,6 +40,8 @@ void* receive_server_msgs_thread(void* args) {
             break;
         }
         printf("[%s:%s] > \"%s\"\n", host_name, port, buffer);
+        int current_i = 1;
+        int len;
         switch (buffer[0]) {
 
             case (int)WaitingPlayers:
@@ -51,14 +52,28 @@ void* receive_server_msgs_thread(void* args) {
                 break;
 
             case (int)GameStart:
+                current_i = 1;
+                SDLex_DestroyText(game.texts.player_names[game.my_index]);
+                // fill players name infos
+                for (int i = 0; i < 4; ++i) {
+                    len = buffer[current_i] - '0';
+                    memcpy(game.players[i].name, &buffer[current_i+1], sizeof(char)*len);
+                    game.players[i].name[len+1] = '\0';
+                    game.texts.player_names[i] = SDLex_CreateText(game.renderer, game.players[i].name, game.font);
+                    current_i += len+1;
+                }
                 printf("Game started !\n");
                 break;
 
             case (int)QuitLobby:
                 game.connected = false;
-                SDLex_DestroyText(game.texts.player_names[my_index]);
-                game.texts.player_names[my_index] = NULL;
-                //write(socket_fd, "ok", sizeof(char)*3);
+                for (int i = 0; i < 4; ++i) {
+                    if (game.texts.player_names[i] != NULL)
+                        SDLex_DestroyText(game.texts.player_names[i]);
+                    else
+                        printf("Player name text %d is NULL !!\n", i);
+                    game.texts.player_names[i] = NULL;
+                }
                 break;
 
             default:
@@ -201,16 +216,15 @@ int main(int argc, char* argv[]) {
                     int msg_size = write(socket_fd, player_name, sizeof(char)*32);
                     printf("[INFO] Sent message of size %d : %s\n", msg_size, player_name);
 
-                    // reading server message : my_index
+                    // reading server message : game.my_index
                     char buffer[2];
                     msg_size = read(socket_fd, buffer, sizeof(buffer));
                     printf("[%s:%s] > \"%s\"\n", host_name, port, buffer);
-                    my_index = buffer[0] - '0';
-                    strcpy(game.players[my_index].name, player_name);
-                    game.players[my_index].index = my_index;
-                    game.players_nb = 4-my_index;
-                    game.texts.player_names[my_index] = SDLex_CreateText(renderer, player_name, game.font);
-                    SDLex_TextSetPosition(game.texts.player_names[my_index], game.grid1.position.x + 20 , game.grid1.position.y+10+(game.grid1.cell_size.y)*(my_index+1));
+                    game.my_index = buffer[0] - '0';
+                    strcpy(game.players[game.my_index].name, player_name);
+                    game.players[game.my_index].index = game.my_index;
+                    game.players_nb = 4-game.my_index;
+                    game.texts.player_names[game.my_index] = SDLex_CreateText(renderer, player_name, game.font);
                     text_need_update = true;
 
                     pthread_t thread;

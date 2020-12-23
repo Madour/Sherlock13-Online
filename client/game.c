@@ -279,8 +279,10 @@ void Game_Render(Game* game) {
 
     // draw player names
     for (int i = 0; i < 4; ++i) {
-        if (game->texts.player_names[i] != NULL)
-            SDLex_RenderDrawText(renderer, game->texts.player_names[i]);
+        if (game->texts.player_names[i] != NULL) {
+            SDL_Point pos = {game->grid1.position.x + 20 , game->grid1.position.y+10+(game->grid1.cell_size.y)*(i+1)};
+            SDLex_RenderDrawTextAt(renderer, game->texts.player_names[i], pos);
+        }
     }
     
     if (!game->connected)
