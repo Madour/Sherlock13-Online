@@ -83,6 +83,8 @@ SDLex_Text* SDLex_CreateText(SDL_Renderer* renderer, char* string, TTF_Font* fon
     
     SDLex_Text* new_text = malloc(sizeof(SDLex_Text));
     new_text->drawable = (SDLex_Sprite){text_tex, {0, 0, 0, 0}, {0, 0}, {1, 1}};
+    new_text->font = font;
+    new_text->renderer = renderer;
 
     return new_text;
 }
@@ -93,12 +95,24 @@ void SDLex_TextSetPosition(SDLex_Text* text, int x, int y) {
     text->drawable.position.y = y;
 }
 
+void SDLex_TextSetString(SDLex_Text* text, char* string) {
+    SDL_Surface* text_surf = TTF_RenderText_Blended(text->font, string, (SDL_Color){0, 0, 0, 0});
+    SDL_Texture* text_tex = SDL_CreateTextureFromSurface(text->renderer, text_surf);
+    SDL_FreeSurface(text_surf);
+
+    if (text->drawable.texture != NULL)
+        SDL_DestroyTexture(text->drawable.texture);
+    text->drawable.texture = text_tex;
+}
+
 void SDLex_RenderDrawText(SDL_Renderer* renderer, SDLex_Text* text) {
     SDLex_RenderDrawSprite(renderer, &text->drawable);
+    text->renderer = renderer;
 }
 
 void SDLex_RenderDrawTextAt(SDL_Renderer* renderer, SDLex_Text* text, SDL_Point pos) {
     SDLex_RenderDrawSpriteAt(renderer, &text->drawable, pos);
+    text->renderer = renderer;
 }
 
 void SDLex_DestroyText(SDLex_Text* text) {

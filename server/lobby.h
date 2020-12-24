@@ -10,6 +10,7 @@ typedef struct Client {
     int sfd;
     char ip[32];
     int port;
+    bool ack;
 } Client;
 
 struct Lobby;

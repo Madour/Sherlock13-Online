@@ -45,37 +45,39 @@ void* manage_player_thread(void* player) {
     char buffer[256];
     int msg_size;
     Player* this_player = (Player*)player;
+    Lobby* this_lobby = this_player->lobby;
     while(1) {
         memset(buffer, 0, sizeof(buffer));
         if (this_player->leave) {
-            printf("[INFO] Player %s leaving lobby %d\n", this_player->name, this_player->lobby->index);
+            printf("[INFO] Player %s leaving lobby %d\n", this_player->name, this_lobby->index);
             break;
         }
         msg_size = read(this_player->client.sfd, buffer, sizeof(buffer));
         if (this_player->leave) {
-            printf("[INFO] Player %s leaving lobby %d\n", this_player->name, this_player->lobby->index);
+            printf("[INFO] Player %s leaving lobby %d\n", this_player->name, this_lobby->index);
             break;
         }
         if (msg_size <= 0) {
             printf("[INFO] Failed to read from client %s:%u\n", this_player->client.ip, this_player->client.port);
-            printf("[INFO] Closing connection with player %s from lobby %d.\n\n", this_player->name, this_player->lobby->index);
+            printf("[INFO] Closing connection with player %s from lobby %d.\n\n", this_player->name, this_lobby->index);
 
             // tell other players in lobby that this_player quit
-            if (1 < this_player->lobby->players_nb && this_player->lobby->players_nb < 4) {
+            if (1 < this_lobby->players_nb && this_lobby->players_nb < 4) {
                 buffer[0] = WaitingPlayers;
-                buffer[1] = this_player->lobby->players_nb+'0';
+                buffer[1] = (this_lobby->players_nb-1)+'0';
                 buffer[2] = '\0';
-                broadcast(this_player->lobby, buffer, 3);
+                broadcast(this_lobby, buffer, 3);
+                this_lobby->players_nb--;
             }
             else {
                 buffer[0] = (char)QuitLobby;
                 buffer[1] = '\0';
-                broadcast(this_player->lobby, buffer, 2);
+                broadcast(this_lobby, buffer, 2);
                 for (int i = 0; i < 4; ++i) {
-                    this_player->lobby->players[i].leave = true;
+                    this_lobby->players[i].leave = true;
                 }
-                this_player->lobby->players_nb = 0;
-                lobbies_states &= 0 << this_player->lobby->index ;
+                this_lobby->players_nb = 0;
+                lobbies_states &= 0 << this_lobby->index ;
             }
             break;
         }
@@ -92,7 +94,7 @@ int main(int argc, char* argv[]) {
         return EXIT_SUCCESS;
     }
     if (!isUInt(argv[1])) {
-        fprintf(stderr, "[Error] Argument <port_number> must be an unsigned int.\n");
+        fprintf(stderr, "[ERROR] Argument <port_number> must be an unsigned int.\n");
         return EXIT_FAILURE;
     }
 
@@ -105,7 +107,7 @@ int main(int argc, char* argv[]) {
     // create socket
     server_sfd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_sfd < 0) {
-        fprintf(stderr, "[Error] Failed to create socket.\n");
+        fprintf(stderr, "[ERROR] Failed to create socket.\n");
         return EXIT_FAILURE;
     }
 
@@ -120,7 +122,7 @@ int main(int argc, char* argv[]) {
 
     // bind server socket
     if (bind(server_sfd, server_ai->ai_addr, server_ai->ai_addrlen)) {
-        fprintf(stderr, "[Error] Socket bind failed.\n");
+        fprintf(stderr, "[ERROR] Socket bind failed.\n");
         return EXIT_FAILURE;
     }
 
@@ -144,7 +146,7 @@ int main(int argc, char* argv[]) {
         unsigned int len = sizeof(client_addr);
         int client_sfd = accept(server_sfd, (struct sockaddr*)&client_addr, &len);
         if (client_sfd < 0) {
-            fprintf(stderr, "[Error] Server accept failed.\n");
+            fprintf(stderr, "[ERROR] Server accept failed.\n");
             return EXIT_FAILURE;
         }
         printf("[INFO] Accepting a connection from %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
@@ -199,7 +201,6 @@ int main(int argc, char* argv[]) {
             pthread_create(&thread, NULL, manage_player_thread, new_player);
             printf("[INFO] Started thread for player \"%s\" (%ld) \n\n", new_player->name, thread);
 
-
             lobby->players_nb++;
 
             printf("[INFO] Number of players connected to lobby %d : %d\n\n", lobby_index, lobby->players_nb);
@@ -212,8 +213,10 @@ int main(int argc, char* argv[]) {
                 broadcast(lobby, buffer, 3);
             }
             else if (lobby->players_nb == 4) {
+                // setting lobby state to full
                 lobbies_states |= 1 << lobby_index;
                 
+                // broadcast GameStart message to lobby
                 buffer[0] = (char)GameStart;
                 int current_i = 1;
                 for (int i = 0; i < 4; ++i) {
@@ -224,11 +227,12 @@ int main(int argc, char* argv[]) {
                 }
                 buffer[current_i] = '\0';
                 broadcast(lobby, buffer, current_i+1);
-                // send GameStart message
                 
-                printf("Lobby %d Game started !\n", lobby_index);
+                printf("Lobby %d Game started !\n\n", lobby_index);
             }
+
         }
+
     }
 
     freeaddrinfo(server_ai);

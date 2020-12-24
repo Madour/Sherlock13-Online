@@ -285,10 +285,13 @@ void Game_Render(Game* game) {
         }
     }
     
-    if (!game->connected)
+    if (!game->connected) {
         SDLex_RenderDrawSprite(renderer, &game->sprites.btn_connect);
-    else if (!game->started)
-        SDLex_RenderDrawText(renderer, game->texts.wait_players);
+    }
+    else if (!game->started) {
+        if (game->texts.wait_players != NULL)
+            SDLex_RenderDrawText(renderer, game->texts.wait_players);
+    } 
 
     // draw grids
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);

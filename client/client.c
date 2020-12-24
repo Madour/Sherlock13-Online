@@ -27,8 +27,6 @@ char* port;
 int socket_fd = -1;
 Game game;
 
-volatile bool text_need_update = false;
-
 void* receive_server_msgs_thread(void* args) {
     char buffer[256];
     while(1) {
@@ -46,7 +44,9 @@ void* receive_server_msgs_thread(void* args) {
 
             case (int)WaitingPlayers:
                 game.players_nb = buffer[1]-'0';
-                text_need_update = true;
+                sprintf(buffer, "Waiting for %d player%s...", 4-game.players_nb, game.players_nb >= 3 ? "":"s");
+                SDLex_TextSetString(game.texts.wait_players, buffer);
+            
                 if (game.players_nb < 4)
                     printf("Waiting for %d more player%s\n\n", 4-game.players_nb, game.players_nb>=3 ? "":"s");
                 break;
@@ -58,7 +58,7 @@ void* receive_server_msgs_thread(void* args) {
                 for (int i = 0; i < 4; ++i) {
                     len = buffer[current_i] - '0';
                     memcpy(game.players[i].name, &buffer[current_i+1], sizeof(char)*len);
-                    game.players[i].name[len+1] = '\0';
+                    game.players[i].name[len] = '\0';
                     game.texts.player_names[i] = SDLex_CreateText(game.renderer, game.players[i].name, game.font);
                     current_i += len+1;
                 }
@@ -182,20 +182,8 @@ int main(int argc, char* argv[]) {
         
         Game_Update(&game);
 
-        // update texts
-        if (text_need_update) {
-            if (!game.started) {
-                SDLex_DestroyText(game.texts.wait_players);
-                char buffer[64];
-                sprintf(buffer, "Waiting for %d player%s...", 4-game.players_nb, game.players_nb >= 3 ? "":"s");
-                game.texts.wait_players = SDLex_CreateText(renderer, buffer, game.font);
-                SDLex_TextSetPosition(game.texts.wait_players, game.sprites.btn_connect.position.x, game.sprites.btn_connect.position.y+5);
-            }
-            text_need_update = false;
-        }
-
-        // connect to server when button pressed : 
         if (game.mouse_click) {
+            // connect to server when button pressed : 
             if (!game.connected) {
                 SDL_Rect cell = SDLex_GridGetCellRect(&game.grid1, -1, 0);
                 if (SDL_PointInRect(&game.mouse_pos, &cell)) {
@@ -212,37 +200,43 @@ int main(int argc, char* argv[]) {
                     game.connected = true;
                     printf("[INFO] Connected to server %s:%u \n", inet_ntoa(((struct sockaddr_in*)server_ai->ai_addr)->sin_addr), ntohs(((struct sockaddr_in*)server_ai->ai_addr)->sin_port));
                     int msg_size = write(socket_fd, player_name, sizeof(char)*32);
+                    if (msg_size <= 0) {
+                        printf("[ERROR] Failed to send message to server. Closing connection.\n\n");
+                        close(socket_fd);
+                        game.connected = false;
+                    }
                     printf(" > \"%s\"\n", player_name);
 
                     // reading server message : game.my_index
-                    char buffer[2];
+                    char buffer[64];
                     msg_size = read(socket_fd, buffer, sizeof(buffer));
                     printf("[%s:%s] > \"%s\"\n", host_name, port, buffer);
                     game.my_index = buffer[0] - '0';
                     strcpy(game.players[game.my_index].name, player_name);
-                    game.players[game.my_index].index = game.my_index;
-                    game.players_nb = 4-game.my_index;
-                    game.texts.player_names[game.my_index] = SDLex_CreateText(renderer, player_name, game.font);
-                    text_need_update = true;
-
+                    
+                    // start thread asap
                     pthread_t thread;
                     pthread_create(&thread, NULL, receive_server_msgs_thread, NULL);
                     printf("[INFO] Start waiting for server messages in thread %lu \n", thread);
 
+                    // fill the rest of game data
+                    game.players[game.my_index].index = game.my_index;
+                    game.players_nb = game.my_index+1;
+                    game.texts.player_names[game.my_index] = SDLex_CreateText(renderer, player_name, game.font);
                 }
             }
             else {
+                // send mouse coordinates (for testing)
                 char buffer[256];
                 sprintf(buffer, "(%d, %d)", game.mouse_pos.x, game.mouse_pos.y);
                 int msg_size = write(socket_fd, buffer, strlen(buffer));
                 if (msg_size <= 0) {
-                    printf("[INFO] Failed to write to server\n");
-                    printf("[INFO] Closing connection.\n\n");
+                    printf("[ERROR] Failed to write to server. Closing connection.\n\n");
                     close(socket_fd);
                     game.connected = false;
                 }
                 else {
-                    printf(" > \"%s\"\n", player_name);
+                    printf(" > \"%s\"\n", buffer);
                 }
             }
         }

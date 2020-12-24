@@ -69,12 +69,16 @@ void SDLex_RenderDrawSpriteAt(SDL_Renderer* renderer, SDLex_Sprite* sprite, SDL_
 
 typedef struct SDLex_Text {
     SDLex_Sprite drawable;
+    TTF_Font* font;
+    SDL_Renderer* renderer;
 } SDLex_Text;
 
 
 SDLex_Text* SDLex_CreateText(SDL_Renderer* renderer, char* string, TTF_Font* font);
 
 void SDLex_TextSetPosition(SDLex_Text* text, int x, int y);
+
+void SDLex_TextSetString(SDLex_Text* text, char* string);
 
 void SDLex_RenderDrawText(SDL_Renderer*, SDLex_Text* text);
 
