@@ -25,21 +25,44 @@
 char* host_name;
 char* port;
 int socket_fd = -1;
+
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 Game game;
+
+int send_msg(int sfd, void* data, int size) {
+    int r = write(sfd, data, size);
+    if (r < 0) {
+        printf("[INFO] Failed to send message : \"%s\"\n\n", (char*)data);
+    }
+    else
+        printf("[%s:%s] < \"%s\"\n\n", host_name, port, (char*)data);
+    return r;
+}
+
+int recv_msg(int sfd, void* buffer, int size) {
+    int r = read(sfd, buffer, size);
+    if (r < 0)
+        printf("[INFO] Failed to receive message from %s:%s\n\n", host_name, port);
+    else
+        printf("[%s:%s] > \"%s\"\n\n", host_name, port, (char*)buffer);
+    return r;
+}
 
 void* receive_server_msgs_thread(void* args) {
     char buffer[256];
     while(1) {
         if (!game.connected)
             break;
-        int msg_size = read(socket_fd, buffer, sizeof(buffer));
+        int msg_size = recv_msg(socket_fd, buffer, sizeof(buffer));
+
         if (msg_size <= 0) {
             game.connected = false;
             break;
         }
-        printf("[%s:%s] > \"%s\"\n\n", host_name, port, buffer);
         int current_i = 1;
         int len;
+
+        pthread_mutex_lock(&mutex);
         switch (buffer[0]) {
 
             case (int)WaitingPlayers:
@@ -53,7 +76,7 @@ void* receive_server_msgs_thread(void* args) {
 
             case (int)GameStart:
                 current_i = 1;
-                SDLex_DestroyText(game.texts.player_names[game.my_index]);
+                printf("Receiving player names : \n");
                 // fill players name infos
                 for (int i = 0; i < 4; ++i) {
                     len = buffer[current_i] - '0';
@@ -61,6 +84,7 @@ void* receive_server_msgs_thread(void* args) {
                     game.players[i].name[len] = '\0';
                     game.texts.player_names[i] = SDLex_CreateText(game.renderer, game.players[i].name, game.font);
                     current_i += len+1;
+                    printf("   - %s\n", game.players[i].name);
                 }
                 printf("Game started !\n\n");
                 break;
@@ -77,8 +101,10 @@ void* receive_server_msgs_thread(void* args) {
             default:
                 printf("Command not recognized\n\n");
                 break;
-
         }
+        send_msg(socket_fd, "ack", 4);
+
+        pthread_mutex_unlock(&mutex);
     }
     close(socket_fd);
     pthread_exit(NULL);
@@ -179,6 +205,8 @@ int main(int argc, char* argv[]) {
                 game.mouse_click = true;
             }
         }
+
+        pthread_mutex_lock(&mutex);
         
         Game_Update(&game);
 
@@ -187,6 +215,7 @@ int main(int argc, char* argv[]) {
             if (!game.connected) {
                 SDL_Rect cell = SDLex_GridGetCellRect(&game.grid1, -1, 0);
                 if (SDL_PointInRect(&game.mouse_pos, &cell)) {
+                    // create socket and connect to server
                     socket_fd = socket(AF_INET, SOCK_STREAM, 0);
                     if (socket_fd < 0) {
                         fprintf(stderr, "[ERROR] Failed to create socket\n");
@@ -195,59 +224,48 @@ int main(int argc, char* argv[]) {
                     if (connect(socket_fd, server_ai->ai_addr, server_ai->ai_addrlen)) {
                         fprintf(stderr, "[ERROR] Connection with the server failed.\n");
                         perror("connect");
-                        return 1;
+                        return EXIT_FAILURE;
                     }
                     game.connected = true;
-                    printf("[INFO] Connected to server %s:%u \n", inet_ntoa(((struct sockaddr_in*)server_ai->ai_addr)->sin_addr), ntohs(((struct sockaddr_in*)server_ai->ai_addr)->sin_port));
-                    int msg_size = write(socket_fd, player_name, sizeof(char)*32);
+                    printf("[INFO] Connected to server %s:%u \n\n", inet_ntoa(((struct sockaddr_in*)server_ai->ai_addr)->sin_addr), ntohs(((struct sockaddr_in*)server_ai->ai_addr)->sin_port));
+                    
+                    // send player name
+                    int msg_size = send_msg(socket_fd, player_name, sizeof(char)*32);
                     if (msg_size <= 0) {
-                        printf("[ERROR] Failed to send message to server. Closing connection.\n\n");
+                        fprintf(stderr, "[ERROR] Failed to send message to server. Closing connection.\n\n");
                         close(socket_fd);
                         game.connected = false;
                     }
-                    printf(" > \"%s\"\n", player_name);
 
-                    // reading server message : game.my_index
-                    char buffer[64];
-                    msg_size = read(socket_fd, buffer, sizeof(buffer));
-                    printf("[%s:%s] > \"%s\"\n", host_name, port, buffer);
-                    game.my_index = buffer[0] - '0';
-                    strcpy(game.players[game.my_index].name, player_name);
-                    
                     // start thread asap
                     pthread_t thread;
                     pthread_create(&thread, NULL, receive_server_msgs_thread, NULL);
-                    printf("[INFO] Start waiting for server messages in thread %lu \n", thread);
-
-                    // fill the rest of game data
-                    game.players[game.my_index].index = game.my_index;
-                    game.players_nb = game.my_index+1;
-                    game.texts.player_names[game.my_index] = SDLex_CreateText(renderer, player_name, game.font);
+                    printf("[INFO] Waiting for server messages in thread %lu \n\n", thread);
+                    sleep(0.2);
+                    send_msg(socket_fd, "ack", 4);
                 }
             }
-            else {
+            /*else {
                 // send mouse coordinates (for testing)
                 char buffer[256];
                 sprintf(buffer, "(%d, %d)", game.mouse_pos.x, game.mouse_pos.y);
-                int msg_size = write(socket_fd, buffer, strlen(buffer));
+                int msg_size = send_msg(socket_fd, buffer, strlen(buffer));
                 if (msg_size <= 0) {
                     printf("[ERROR] Failed to write to server. Closing connection.\n\n");
                     close(socket_fd);
                     game.connected = false;
                 }
-                else {
-                    printf(" > \"%s\"\n", buffer);
-                }
-            }
+            }*/
         }
 
         Game_Render(&game);
+        pthread_mutex_unlock(&mutex);
         
         // limit FPS
         float elapsed_s = (SDL_GetPerformanceCounter() - start_time) / (float)SDL_GetPerformanceFrequency();
         SDL_Delay(fmax(0, 16.66 - elapsed_s*1000));
         elapsed_s = (SDL_GetPerformanceCounter() - start_time) / (float)SDL_GetPerformanceFrequency();
-        sprintf(window_title, "Sherlock 13 Online ! - FPS : %f - frame duration : %f ms", 1.0/elapsed_s, elapsed_s*1000);
+        sprintf(window_title, "Sherlock 13 Online ! %s - FPS : %f - frame duration : %f ms", player_name, 1.0/elapsed_s, elapsed_s*1000);
         SDL_SetWindowTitle(window, window_title);
     }
 

@@ -65,13 +65,13 @@ $(SERVER_TGT): $(COMMON_OBJ) $(SERVER_OBJ)
 	$(CC) $(CCFLAGS) -o $@ $^ $(LIBFLAGS) 
 
 $(OBJ_DIR)/client/%.o: ./client/%.c
-	$(CC) $(CCFLAGS) -o $@ -c $< $(INCFLAGS) 
+	$(CC) $(CCFLAGS) -o $@ -c $< $(INCFLAGS) $(LIBFLAGS)
 
 $(OBJ_DIR)/common/%.o: ./common/%.c
 	$(CC) $(CCFLAGS) -o $@ -c $< $(INCFLAGS) 
 
 $(OBJ_DIR)/server/%.o: ./server/%.c
-	$(CC) $(CCFLAGS) -o $@ -c $< $(INCFLAGS) 
+	$(CC) $(CCFLAGS) -o $@ -c $< $(INCFLAGS) $(LIBFLAGS)
 
 .depend:
 	$(CC) -MM $(CLIENT_SRC) > $@
