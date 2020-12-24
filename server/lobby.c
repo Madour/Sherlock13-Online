@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 
@@ -10,11 +11,7 @@
 void Lobby_Broadcast(Lobby* lobby, char* msg, unsigned int size) {
     printf("[INFO] Broadcasting message to lobby %d : \"%s\"\n", lobby->index, msg);
     for (int i = 0; i < lobby->players_nb; ++i) {
-        lobby->players[i].wait_msg = true;
-    }
-
-    for (int i = 0; i < lobby->players_nb; ++i) {
-        send_msg(&lobby->players[i], msg, sizeof(char)*size);
+        send_msg(lobby->players[i], msg, sizeof(char)*size);
     }
     printf("\n");
 }
@@ -25,7 +22,7 @@ void Lobby_WaitAcks(Lobby* lobby) {
         int acks = 0;
         for (int i = 0; i < lobby->players_nb; ++i) {
             sched_yield();
-            if (lobby->players[i].client.ack) 
+            if (lobby->players[i]->client.ack) 
                 acks++;
         }
         if (acks == lobby->players_nb)
@@ -33,9 +30,8 @@ void Lobby_WaitAcks(Lobby* lobby) {
         if (timeout == 1)
             printf("[WARNING] Ack timeout after broadcast\n");
     }
-    for (int i = 0; i < 4; ++i) {
-        lobby->players[i].wait_msg = false;
-        lobby->players[i].client.ack = false; 
+    for (int i = 0; i < lobby->players_nb; ++i) {
+        lobby->players[i]->client.ack = false; 
     }
 }
 
@@ -52,9 +48,9 @@ void* manage_lobby_thread(void* lobby) {
     buffer[0] = (char)GameStart;
     int current_i = 1;
     for (int i = 0; i < 4; ++i) {
-        int name_len = strlen(this_lobby->players[i].name);
+        int name_len = strlen(this_lobby->players[i]->name);
         buffer[current_i] = name_len+'0';
-        strcpy(&buffer[current_i+1], this_lobby->players[i].name);
+        strcpy(&buffer[current_i+1], this_lobby->players[i]->name);
         current_i += name_len+1;
     }
     MsgQueue_Append(msg_queue, buffer, current_i+1, -1);
@@ -64,7 +60,7 @@ void* manage_lobby_thread(void* lobby) {
 
     while (1) {
         for (int i = 0; i < 4; ++i)
-            if (this_lobby->players[i].leave)
+            if (this_lobby->players[i]->leave)
                 close_lobby = true;
         if (close_lobby)
             break;
@@ -78,10 +74,8 @@ void* manage_lobby_thread(void* lobby) {
                     Lobby_WaitAcks(this_lobby);
                 }
                 else {
-                    Player* player = &this_lobby->players[msg->dest];
-                    player->wait_msg = true;
-                    write(player->client.sfd, msg->msg, msg->size);
-                    printf("[%s:%d] %s < %d : \"%s\"", player->client.ip, player->client.port, player->name, this_lobby->index, msg->msg);
+                    Player* player = this_lobby->players[msg->dest];
+                    send_msg(player, msg->msg, msg->size);
                 }
 
                 MsgQueue_Pop(msg_queue);
@@ -140,16 +134,19 @@ void* manage_player_thread(void* player) {
             else if (1 < this_lobby->players_nb && this_lobby->players_nb < 4) {
                 // rearange players index
                 for (int i = this_player->index; i < 2; ++i) {
-                    Player_Copy(&this_lobby->players[i], &this_lobby->players[i+1]);
+                    this_lobby->players[i] = this_lobby->players[i+1];
                 }
                 this_lobby->players_nb--;
+                for (int i = this_lobby->players_nb; i < 4; ++i) {
+                    this_lobby->players[i] = NULL;
+                }
                 
                 buffer[0] = WaitingPlayers;
                 buffer[1] = this_lobby->players_nb+'0';
                 buffer[2] = '\0';
                 Lobby_Broadcast(this_lobby, buffer, 3);
                 Lobby_WaitAcks(this_lobby);
-                
+                printf("Player %s quit, new number of players in lobby : %d\n\n", this_player->name, this_lobby->players_nb);
             }
             // if game already started, just make everyone quit
             else {
@@ -158,7 +155,7 @@ void* manage_player_thread(void* player) {
                 buffer[1] = '\0';
                 Lobby_Broadcast(this_lobby, buffer, 2);
                 for (int i = 0; i < 4; ++i) {
-                    this_lobby->players[i].leave = true;
+                    this_lobby->players[i]->leave = true;
                 }
                 this_lobby->players_nb = 0;
                 *this_lobby->lobby_states &= 0 << this_lobby->index ;
@@ -168,10 +165,9 @@ void* manage_player_thread(void* player) {
         if (strcmp(buffer, "ack") == 0) {
             this_player->client.ack = true;
         }
-        this_player->wait_msg = false;
     }
-    this_player->index = -1;
     close(this_player->client.sfd);
+    free(this_player);
     pthread_exit(NULL);
 }
 

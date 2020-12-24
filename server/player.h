@@ -16,7 +16,6 @@ typedef struct Player {
     Client client;
     char name[32];
     int index;
-    int wait_msg;
     bool leave;
     struct Lobby* lobby;
 } Player;

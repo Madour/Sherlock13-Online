@@ -10,7 +10,7 @@
 
 typedef struct Lobby {
     int index;
-    Player players[4];
+    Player* players[4];
     int players_nb;
 
     MsgQueue queue;

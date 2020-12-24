@@ -96,7 +96,7 @@ int main(int argc, char* argv[]) {
         lobbies_array[i].lobby_states = &lobbies_states;
         MsgQueue_Init(&lobbies_array[i].queue);
         for (int p = 0; p < 4; ++p)
-            lobbies_array[i].players[p].index = -1;
+            lobbies_array[i].players[p] = NULL;
     }
     
     while (1) {
@@ -133,16 +133,19 @@ int main(int argc, char* argv[]) {
         if (lobby->players_nb < 4) {
             
             // get player pointer
-            Player* new_player = &lobby->players[lobby->players_nb];
-            
-            // fill new player info
-            new_player->lobby = lobby;
-            new_player->index = lobby->players_nb;
-            new_player->wait_msg = false;
-            new_player->leave = false;
+            Player* new_player = malloc(sizeof(Player));
+            lobby->players[lobby->players_nb] = new_player;
+
+            // fill new player client info
             new_player->client.sfd = client_sfd;
             strcpy(new_player->client.ip, inet_ntoa(client_addr.sin_addr));
             new_player->client.port = ntohs(client_addr.sin_port);
+            new_player->client.ack = false;
+            // fill new player lobby info
+            new_player->lobby = lobby;
+            new_player->index = lobby->players_nb;
+            new_player->leave = false;
+            
             
             // first message received from new client is player name
             char buffer[256];
@@ -178,9 +181,7 @@ int main(int argc, char* argv[]) {
                 // create thread for lobby and start game
                 pthread_create(&thread, NULL, manage_lobby_thread, lobby);
             }
-
         }
-
     }
 
     freeaddrinfo(server_ai);
