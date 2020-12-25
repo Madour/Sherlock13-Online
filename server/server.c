@@ -178,8 +178,10 @@ int main(int argc, char* argv[]) {
                 buffer[0] = (char)WaitingPlayers;
                 buffer[1] = (char)lobby->players_nb+'0';
                 buffer[2] = '\0';
+                Lobby_lock(lobby, NULL);
                 Lobby_broadcast(lobby, buffer, 3);
                 Lobby_waitAcks(lobby);
+                Lobby_unlock(lobby, NULL);
 
              if (lobby->players_nb == 4) {
                 // setting lobby state to full

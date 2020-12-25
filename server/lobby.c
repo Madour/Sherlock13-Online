@@ -15,7 +15,7 @@ void Lobby_lock(Lobby* lobby, Player* player) {
 }
 
 void Lobby_unlock(Lobby* lobby, Player* player) {
-    printf("[LOCK] Lobby %d is unlocked\n\n", lobby->index);
+    printf("[LOCK] Lobby %d is unlocked by %s\n\n", lobby->index, player == NULL ? "lobby" : player->name);
     pthread_mutex_unlock(&lobby->mutex_players);
     lobby->locked = false;
 }
@@ -33,11 +33,9 @@ inline void Lobby_waitAcks(Lobby* lobby) {
     int acks_nb = 0;
     for (int timeout = 100000; timeout > 0; --timeout) {
         for (int i = 0; i < lobby->players_nb; ++i) {
-            Lobby_unlock(lobby, NULL);
-            //pthread_mutex_unlock(&lobby->mutex_players);
+            pthread_mutex_unlock(&lobby->mutex_players);
             sched_yield();
-            //pthread_mutex_lock(&lobby->mutex_players);
-            Lobby_lock(lobby, NULL);
+            pthread_mutex_lock(&lobby->mutex_players);
             if (acks[i] == false && lobby->players[i]->client.ack)  {
                 printf("[BROAD] Player %d:%s acked\n", lobby->index, lobby->players[i]->name);
                 acks[i] = true;
@@ -197,8 +195,10 @@ void* manage_player_thread(void* player) {
         this_player->client.ack = (strcmp(buffer, "ack") == 0);
     }
     close(this_player->client.sfd);
-    if (this_player != NULL)
+    if (this_player != NULL) {
+        printf("[INFO] Player %d:%s closing thread and freeing %ld bytes\n\n", this_lobby->index, this_player->name, sizeof(Player));
         free(this_player);
+    }
     pthread_exit(NULL);
 }
 
