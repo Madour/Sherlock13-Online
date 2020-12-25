@@ -15,16 +15,16 @@ typedef struct MsgQueue {
 } MsgQueue;
 
 
-void MsgQueue_Init(MsgQueue* queue);
+void MsgQueue_init(MsgQueue* queue);
 
-MsgNode* MsgQueue_Front(MsgQueue* queue);
+MsgNode* MsgQueue_front(MsgQueue* queue);
 
-void MsgQueue_Append(MsgQueue* queue, char* msg, int size, int dest);
+void MsgQueue_append(MsgQueue* queue, char* msg, int size, int dest);
 
-void MsgQueue_Pop(MsgQueue* queue);
+void MsgQueue_pop(MsgQueue* queue);
 
-void MsgQueue_Clear(MsgQueue* queue);
+void MsgQueue_clear(MsgQueue* queue);
 
-void MsgQueue_Print(MsgQueue* queue);
+void MsgQueue_print(MsgQueue* queue);
 
 #endif//MSG_QUEUE_H

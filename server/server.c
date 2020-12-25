@@ -95,9 +95,9 @@ int main(int argc, char* argv[]) {
         lobbies_array[i].send_next = false;
         for (int p = 0; p < 4; ++p)
             lobbies_array[i].players[p] = NULL;
-        MsgQueue_Init(&lobbies_array[i].queue);
+        MsgQueue_init(&lobbies_array[i].queue);
 
-        pthread_mutex_init(&lobbies_array[i].mutex_players, NULL);
+        pthread_mutex_init(&lobbies_array[i].mutex, NULL);
         lobbies_array[i].locked = false;
 
         lobbies_array[i].lobby_states = &lobbies_states;
@@ -157,9 +157,8 @@ int main(int argc, char* argv[]) {
             recv_msg(new_player, buffer, sizeof(char)*32);
             strcpy(new_player->name, buffer);
 
-            // read ack
-            printf("[INFO] Waiting player ack\n");
-            recv_msg(new_player, buffer, 4);
+            //send ack
+            send_msg(new_player, "ack", 4);
 
             printf("     > New player name : \"%s\"\n     > Joined lobby number %d\n\n", new_player->name, lobby_index);
 
@@ -173,15 +172,13 @@ int main(int argc, char* argv[]) {
 
             printf("[INFO] Number of players connected to lobby %d : %d\n\n", lobby_index, lobby->players_nb);
 
-            //if (lobby->players_nb < 4) {
-                // broadcast the number of connected players to all players in lobby
-                buffer[0] = (char)WaitingPlayers;
-                buffer[1] = (char)lobby->players_nb+'0';
-                buffer[2] = '\0';
-                Lobby_lock(lobby, NULL);
-                Lobby_broadcast(lobby, buffer, 3);
-                Lobby_waitAcks(lobby);
-                Lobby_unlock(lobby, NULL);
+            buffer[0] = (char)WaitingPlayers;
+            buffer[1] = (char)lobby->players_nb+'0';
+            buffer[2] = '\0';
+            Lobby_lock(lobby, NULL);
+            Lobby_broadcast(lobby, buffer, 3);
+            Lobby_waitAcks(lobby);
+            Lobby_unlock(lobby, NULL);
 
              if (lobby->players_nb == 4) {
                 // setting lobby state to full

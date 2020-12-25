@@ -29,22 +29,38 @@ int socket_fd = -1;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 Game game;
 
-int send_msg(int sfd, void* data, int size) {
-    int r = write(sfd, data, size);
+int send_msg(int sfd, void* buffer, int size) {
+    int r = write(sfd, buffer, size);
+    char* data = (char*)buffer;
     if (r < 0) {
-        printf("[INFO] Failed to send message : \"%s\"\n\n", (char*)data);
+        printf("[INFO] Failed to send message : \"%s\"\n\n", data);
     }
-    else
-        printf("[%s:%s] < \"%s\" = %d bytes\n\n", host_name, port, (char*)data, r);
+    else {
+        char string[256];
+        sprintf(string, "[%s:%s] < \"%s\" = ", host_name, port, data);
+        for (int i = 0; i < r; ++i) {
+            sprintf(string, "%02x ", data[i]);
+        }
+        sprintf(string, "(%d bytes)", r);
+        printf("%s\n\n", string);
+    }
     return r;
 }
 
 int recv_msg(int sfd, void* buffer, int size) {
     int r = read(sfd, buffer, size);
+    char* data = (char*)buffer;
     if (r < 0)
         printf("[INFO] Failed to receive message from %s:%s\n\n", host_name, port);
-    else
-        printf("[%s:%s] > \"%s\" = %d bytes\n\n", host_name, port, (char*)buffer, r);
+    else {
+        char string[256];
+        sprintf(string, "[%s:%s] > \"%s\" = ", host_name, port, data);
+        for (int i = 0; i < r; ++i) {
+            sprintf(string, "%02x ", data[i]);
+        }
+        sprintf(string, "(%d bytes)", r);
+        printf("%s\n\n", string);
+    }
     return r;
 }
 
@@ -89,6 +105,13 @@ void* receive_server_msgs_thread(void* args) {
                 printf("Game started !\n\n");
                 break;
 
+            case (int)DistribCards:
+                printf("Received my cards : \n");
+                for (int i = 0; i < 3; ++i) {
+                    printf("    - %s\n", DATA.character_names[((int)buffer[1+i])-1]);
+                }
+                break;
+
             case (int)QuitLobby:
                 game.connected = false;
                 for (int i = 0; i < 4; ++i) {
@@ -123,8 +146,8 @@ int main(int argc, char* argv[]) {
     host_name = argv[1];
     port = argv[2];
     char* player_name = argv[3];
-    if (strlen(player_name) > 32)
-        player_name[32] = '\0';
+    int len = strlen(player_name);
+    player_name[(len > 32 ? 32 : len)] = '\0';
 
     printf("Player %s\n", player_name);
 
@@ -153,40 +176,6 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
-    char* characters_names[13] = {
-        "Sebastian Moran",
-        "Irene Adler",
-        "Inspector Lestrade",
-        "Inspector Gregson",
-        "Inspector Baynes",
-        "Inspector Bradstreet",
-        "Inspector Hopkins",
-        "Sherlock Holmes",
-        "John Watson",
-        "Mycroft Holmes",
-        "Mrs. Hudson",
-        "Mary Morstan",
-        "James Moriarty"
-    };
-    // characters_items[character_my_] contains {item1_index, item2_index, item3_index}
-    int characters_items[13][3] = {
-        {4, 7, -1},     // seb moran
-        {3, 4, 2},      // iren adler
-        {3, 5, 1},      // insp lestrade
-        {3, 7, 1},      //insp gregson
-        {3, 0, -1},     // insp baynes
-        {3, 7, -1},     // insp bradstreet
-        {3, 6, 5},      // insp hopkins
-        {6, 0, 7},      // sherlock
-        {6, 5, 7},      // watson
-        {6, 0, 1},      // mycroft
-        {6, 2, -1},     // hudson
-        {1, 2, -1},     // mary morstan
-        {4, 0, -1},     // james moriarty
-    };
-
-    game.data.character_names = characters_names;
-    game.data.character_items = &characters_items[0][0];
     Game_init(&game, renderer);
 
     while(!game.quit) {
@@ -230,13 +219,15 @@ int main(int argc, char* argv[]) {
                     printf("[INFO] Connected to server %s:%u \n\n", inet_ntoa(((struct sockaddr_in*)server_ai->ai_addr)->sin_addr), ntohs(((struct sockaddr_in*)server_ai->ai_addr)->sin_port));
                     
                     // send player name
-                    int msg_size = send_msg(socket_fd, player_name, sizeof(char)*32);
+                    int msg_size = send_msg(socket_fd, player_name, strlen(player_name)+1);
                     if (msg_size <= 0) {
                         fprintf(stderr, "[ERROR] Failed to send message to server. Closing connection.\n\n");
                         close(socket_fd);
                         game.connected = false;
                     }
-                    send_msg(socket_fd, "ack", 4);
+                    //wait serevr ack
+                    char buffer[4];
+                    recv_msg(socket_fd, buffer, 4);
 
                     // start thread asap
                     pthread_t thread;

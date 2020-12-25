@@ -13,10 +13,12 @@ typedef struct Lobby {
     Player* players[4];
     int players_nb;
 
+
+
     MsgQueue queue;
     bool send_next;
 
-    pthread_mutex_t mutex_players;
+    pthread_mutex_t mutex;
     bool locked;
 
     // global lobbies state
@@ -35,7 +37,7 @@ void* manage_lobby_thread(void* lobby);
 
 void* manage_player_thread(void* player);
 
-int send_msg(Player* player, void* data, int size);
+int send_msg(Player* player, void* buffer, int size);
 int recv_msg(Player* player, void* buffer, int size);
 
 

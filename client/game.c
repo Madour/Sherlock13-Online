@@ -8,6 +8,7 @@ static void Game_initSprites(Game* game);
 static void Game_initTexts(Game* game);
 
 void Game_init(Game* game, SDL_Renderer* renderer) {
+    game->data = &DATA;
     game->quit = false;
     
     game->mouse_click = false;
@@ -116,7 +117,7 @@ void Game_initTexts(Game* game) {
     }
 
     for (int i = 0; i < 13; ++i) {
-        char* name = game->data.character_names[i];
+        char* name = game->data->character_names[i];
         game->texts.character_names[i] = SDLex_CreateText(game->renderer, name, game->font);
         SDL_Point pos = {game->grid2.position.x+game->grid2.padding_topleft.x+12, game->grid2.position.y+game->grid2.cell_size.y*i+10};
         SDLex_TextSetPosition(game->texts.character_names[i], pos.x, pos.y);
@@ -269,7 +270,7 @@ void Game_render(Game* game) {
         //SDL_Point pos = {game->grid2.position.x+game->grid2.padding_topleft.x+12, game->grid2.position.y+game->grid2.cell_size.y*i+10};
         SDLex_RenderDrawText(renderer, game->texts.character_names[i]);
         for (int j = 0; j < 3; ++j) {
-            int item = *(game->data.character_items + i*3 + j);
+            int item = game->data->character_items[i][j];
             if (item != -1) {
                 SDL_Point pos = (SDL_Point){game->grid2.position.x+game->grid2.padding_topleft.x-34*(j+1), game->grid2.position.y+game->grid2.cell_size.y*i+3};
                 SDLex_RenderDrawSpriteAt(renderer, &game->sprites.items[item], pos);

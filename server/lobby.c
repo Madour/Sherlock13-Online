@@ -9,14 +9,14 @@
 #include "server/lobby.h"
 
 void Lobby_lock(Lobby* lobby, Player* player) {
-    pthread_mutex_lock(&lobby->mutex_players);
+    pthread_mutex_lock(&lobby->mutex);
     lobby->locked = true;
     printf("[LOCK] Lobby %d is locked by %s\n\n", lobby->index, player == NULL ? "lobby" : player->name);
 }
 
 void Lobby_unlock(Lobby* lobby, Player* player) {
     printf("[LOCK] Lobby %d is unlocked by %s\n\n", lobby->index, player == NULL ? "lobby" : player->name);
-    pthread_mutex_unlock(&lobby->mutex_players);
+    pthread_mutex_unlock(&lobby->mutex);
     lobby->locked = false;
 }
 
@@ -31,11 +31,11 @@ void Lobby_broadcast(Lobby* lobby, char* msg, unsigned int size) {
 inline void Lobby_waitAcks(Lobby* lobby) {
     bool acks[4] = {false, false, false, false};
     int acks_nb = 0;
-    for (int timeout = 100000; timeout > 0; --timeout) {
+    for (int timeout = 1000; timeout > 0; --timeout) {
         for (int i = 0; i < lobby->players_nb; ++i) {
-            pthread_mutex_unlock(&lobby->mutex_players);
+            pthread_mutex_unlock(&lobby->mutex);
             sched_yield();
-            pthread_mutex_lock(&lobby->mutex_players);
+            pthread_mutex_lock(&lobby->mutex);
             if (acks[i] == false && lobby->players[i]->client.ack)  {
                 printf("[BROAD] Player %d:%s acked\n", lobby->index, lobby->players[i]->name);
                 acks[i] = true;
@@ -64,10 +64,11 @@ void* manage_lobby_thread(void* lobby) {
     printf("[INFO] Started thread for lobby %d (%ld) \n\n", this_lobby->index, pthread_self());
 
     MsgQueue* msg_queue = &this_lobby->queue;
-    MsgQueue_Clear(msg_queue);
+    MsgQueue_clear(msg_queue);
     
     // broadcast GameStart message to lobby
     char buffer[256];
+    memset(buffer, 0, sizeof(buffer));
     buffer[0] = (char)GameStart;
     int current_i = 1;
     for (int i = 0; i < 4; ++i) {
@@ -76,7 +77,35 @@ void* manage_lobby_thread(void* lobby) {
         strcpy(&buffer[current_i+1], this_lobby->players[i]->name);
         current_i += name_len+1;
     }
-    MsgQueue_Append(msg_queue, buffer, current_i+1, -1);
+    MsgQueue_append(msg_queue, buffer, current_i+1, -1);
+
+
+    // filling players cards and adding the message to the queue
+    memset(buffer, 0, sizeof(buffer));
+    buffer[0] = (char)DistribCards;
+    int taken_cards = 0;
+    for (int i = 0; i < 4; ++i) {
+        printf("Player %d:%s cards : \n", this_lobby->index, this_lobby->players[i]->name);
+        for (int j = 0; j < 3; ++j) {
+            int card;
+            bool found = false;
+            do {
+                card = rand()%13;
+                if ( ((taken_cards>>card)&1) == 0 ) {
+                    this_lobby->players[i]->cards[j] = card;
+                    taken_cards |= 1 << card;
+                    found = true;
+                    printf("  - %2d = %s\n", card, DATA.character_names[card]);
+                }
+            } while(!found);
+            buffer[1+j] = (char)(card+1);
+        }
+        buffer[4] = '\0';
+        MsgQueue_append(msg_queue, buffer, 5, i);
+        printf("\n");
+    }
+
+    MsgQueue_print(msg_queue);
 
     this_lobby->send_next = true;
     bool close_lobby = false;
@@ -89,7 +118,7 @@ void* manage_lobby_thread(void* lobby) {
 
         if (this_lobby->send_next) {
             if (msg_queue->size > 0) {
-                MsgNode* msg = MsgQueue_Front(msg_queue);
+                MsgNode* msg = MsgQueue_front(msg_queue);
 
                 if (msg->dest == -1) {
                     printf("[LOCK] Lobby %d waiting for Mutex lock\n\n", this_lobby->index);
@@ -101,12 +130,15 @@ void* manage_lobby_thread(void* lobby) {
                     Lobby_unlock(this_lobby, NULL);
                 }
                 else {
+                    printf("[LOCK] Lobby %d waiting for Mutex lock\n\n", this_lobby->index);
+                    Lobby_lock(this_lobby, NULL);
                     Player* player = this_lobby->players[msg->dest];
                     send_msg(player, msg->msg, msg->size);
+                    Lobby_unlock(this_lobby, NULL);
                 }
 
-                MsgQueue_Pop(msg_queue);
-                this_lobby->send_next = false;
+                MsgQueue_pop(msg_queue);
+                this_lobby->send_next = true;
             }
             else {
                 sched_yield();
@@ -119,7 +151,7 @@ void* manage_lobby_thread(void* lobby) {
 
     printf("[INFO] Closing thread for lobby %d (%ld) \n\n", this_lobby->index, pthread_self());
 
-    MsgQueue_Clear(msg_queue);
+    MsgQueue_clear(msg_queue);
     pthread_exit(NULL);
 
 }
@@ -202,21 +234,37 @@ void* manage_player_thread(void* player) {
     pthread_exit(NULL);
 }
 
-int send_msg(Player* player, void* data, int size) {
-    int r = write(player->client.sfd, data, size);
+int send_msg(Player* player, void* buffer, int size) {
+    int r = write(player->client.sfd, buffer, size);
+    char* data = (char*)buffer;
     if (r < 0) {
-        printf("[INFO] Failed to send message to %s (lobby %d): \"%s\"\n\n", player->name, player->lobby->index, (char*)data);
+        printf("[INFO] Failed to send message to %s (lobby %d): \"%s\"\n\n", player->name, player->lobby->index, data);
     }
-    else
-        printf("[%s:%d] %d:%s < \"%s\" = %d bytes\n\n", player->client.ip, player->client.port, player->lobby->index, player->name, (char*)data, r);
+    else {
+        char string[256];
+        sprintf(string, "[%s:%d] %d:%s < \"%s\" = ", player->client.ip, player->client.port, player->lobby->index, player->name, data);
+        for (int i = 0; i < r; ++i) {
+            sprintf(string, "%02x ", data[i]);
+        }
+        sprintf(string, "(%d bytes)", r);
+        printf("%s\n\n", string);
+    }
     return r;
 }
 
 int recv_msg(Player* player, void* buffer, int size) {
     int r = read(player->client.sfd, buffer, size);
+    char* data = (char*)buffer;
     if (r < 0)
         printf("[INFO] Failed to receive message from %s [%s:%d]\n\n", player->name, player->client.ip, player->client.port);
-    else
-        printf("[%s:%d] %d:%s > \"%s\" = %d bytes\n\n", player->client.ip, player->client.port, player->lobby->index, player->name, (char*)buffer, r);
+    else {
+        char string[256] = "";
+        sprintf(string, "[%s:%d] %d:%s > \"%s\" = ", player->client.ip, player->client.port, player->lobby->index, player->name, data);
+        for (int i = 0; i < r; ++i) {
+            sprintf(string, "%02x ", data[i]);
+        }
+        sprintf(string, "(%d bytes)", r);
+        printf("%s\n\n", string);
+    }
     return r;
 }

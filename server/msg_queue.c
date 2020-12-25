@@ -4,17 +4,17 @@
 
 #include "server/msg_queue.h"
 
-void MsgQueue_Init(MsgQueue* queue) {
+void MsgQueue_init(MsgQueue* queue) {
     queue->size = 0;
     queue->head = NULL;
     queue->tail = NULL;
 }
 
-MsgNode* MsgQueue_Front(MsgQueue* queue) {
+MsgNode* MsgQueue_front(MsgQueue* queue) {
     return queue->head;
 }
 
-void MsgQueue_Append(MsgQueue* queue, char* msg, int size, int dest) {
+void MsgQueue_append(MsgQueue* queue, char* msg, int size, int dest) {
     MsgNode* new_node = malloc(sizeof(MsgNode));
 
     strcpy(new_node->msg, msg);
@@ -31,7 +31,7 @@ void MsgQueue_Append(MsgQueue* queue, char* msg, int size, int dest) {
     queue->size++;
 }
 
-void MsgQueue_Pop(MsgQueue* queue) {
+void MsgQueue_pop(MsgQueue* queue) {
     if (queue->size == 0)
         return;
 
@@ -42,14 +42,14 @@ void MsgQueue_Pop(MsgQueue* queue) {
     queue->size--;
 }
 
-void MsgQueue_Clear(MsgQueue* queue) {
+void MsgQueue_clear(MsgQueue* queue) {
     while (queue->size > 0) {
-        MsgQueue_Pop(queue);
+        MsgQueue_pop(queue);
     }
-    MsgQueue_Init(queue);
+    MsgQueue_init(queue);
 }
 
-void MsgQueue_Print(MsgQueue* queue) {
+void MsgQueue_print(MsgQueue* queue) {
     MsgNode* node;
     int i = 0;
     for (node = queue->head; node != NULL; node = node->next)

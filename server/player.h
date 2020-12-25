@@ -14,8 +14,10 @@ struct Lobby;
 
 typedef struct Player {
     Client client;
-    char name[32];
     int index;
+    char name[32];
+    int cards[3];
+
     bool leave;
     struct Lobby* lobby;
 } Player;

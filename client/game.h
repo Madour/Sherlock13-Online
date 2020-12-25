@@ -2,7 +2,8 @@
 #define GAME_H
 
 #include <stdbool.h>
-#include "SDLex.h"
+#include "client/SDLex.h"
+#include "common/typedefs.h"
 
 typedef struct Player {
     char name[32];
@@ -45,10 +46,6 @@ struct GameTexts {
     SDLex_Text* character_names[13];
 };
 
-struct GameData {
-    char** character_names;
-    int* character_items;
-};
 
 typedef struct Game {
     // system info
@@ -70,7 +67,7 @@ typedef struct Game {
     // game data
     struct Selection selected;
     struct Hovering hovered;
-    struct GameData data;
+    const struct GameData* data;
 
     // render info
     SDL_Renderer* renderer;
