@@ -93,10 +93,14 @@ int main(int argc, char* argv[]) {
     for (int i = 0; i < MAX_LOBBIES; i++) {
         lobbies_array[i].index = i;
         lobbies_array[i].send_next = false;
-        lobbies_array[i].lobby_states = &lobbies_states;
-        MsgQueue_Init(&lobbies_array[i].queue);
         for (int p = 0; p < 4; ++p)
             lobbies_array[i].players[p] = NULL;
+        MsgQueue_Init(&lobbies_array[i].queue);
+
+        pthread_mutex_init(&lobbies_array[i].mutex_players, NULL);
+        lobbies_array[i].locked = false;
+
+        lobbies_array[i].lobby_states = &lobbies_states;
     }
     
     while (1) {
@@ -133,7 +137,7 @@ int main(int argc, char* argv[]) {
         if (lobby->players_nb < 4) {
             
             // get player pointer
-            Player* new_player = malloc(sizeof(Player));
+            Player* new_player = (Player*)malloc(sizeof(Player));
             lobby->players[lobby->players_nb] = new_player;
 
             // fill new player client info
@@ -144,12 +148,13 @@ int main(int argc, char* argv[]) {
             // fill new player lobby info
             new_player->lobby = lobby;
             new_player->index = lobby->players_nb;
+            strcpy(new_player->name, "");
             new_player->leave = false;
             
             
             // first message received from new client is player name
             char buffer[256];
-            recv_msg(new_player, buffer, sizeof(buffer));
+            recv_msg(new_player, buffer, sizeof(char)*32);
             strcpy(new_player->name, buffer);
 
             // read ack
@@ -159,27 +164,30 @@ int main(int argc, char* argv[]) {
             printf("     > New player name : \"%s\"\n     > Joined lobby number %d\n\n", new_player->name, lobby_index);
 
             // create thread for the newly connected player
-            pthread_t thread;
-            pthread_create(&thread, NULL, manage_player_thread, new_player);
-            printf("[INFO] Started thread for player \"%s\" (%ld) \n\n", new_player->name, thread);
+            pthread_t player_thread;
+            pthread_create(&player_thread, NULL, manage_player_thread, new_player);
+            pthread_detach(player_thread);
+            printf("[INFO] Started thread for player \"%s\" (%ld) \n\n", new_player->name, player_thread);
 
             lobby->players_nb++;
 
             printf("[INFO] Number of players connected to lobby %d : %d\n\n", lobby_index, lobby->players_nb);
 
-            if (lobby->players_nb < 4) {
+            //if (lobby->players_nb < 4) {
                 // broadcast the number of connected players to all players in lobby
                 buffer[0] = (char)WaitingPlayers;
                 buffer[1] = (char)lobby->players_nb+'0';
                 buffer[2] = '\0';
-                Lobby_Broadcast(lobby, buffer, 3);
-                Lobby_WaitAcks(lobby);
-            }
-            else if (lobby->players_nb == 4) {
+                Lobby_broadcast(lobby, buffer, 3);
+                Lobby_waitAcks(lobby);
+
+             if (lobby->players_nb == 4) {
                 // setting lobby state to full
                 lobbies_states |= 1 << lobby_index;
                 // create thread for lobby and start game
-                pthread_create(&thread, NULL, manage_lobby_thread, lobby);
+                pthread_t lobby_thread;
+                pthread_create(&lobby_thread, NULL, manage_lobby_thread, lobby);
+                pthread_detach(lobby_thread);
             }
         }
     }

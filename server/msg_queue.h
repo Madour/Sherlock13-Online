@@ -2,7 +2,7 @@
 #define MSG_QUEUE_H
 
 typedef struct MsgNode {
-    char msg[64];
+    char msg[256];
     int size;
     int dest;
     struct MsgNode* next;

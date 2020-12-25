@@ -35,7 +35,7 @@ int send_msg(int sfd, void* data, int size) {
         printf("[INFO] Failed to send message : \"%s\"\n\n", (char*)data);
     }
     else
-        printf("[%s:%s] < \"%s\"\n\n", host_name, port, (char*)data);
+        printf("[%s:%s] < \"%s\" = %d bytes\n\n", host_name, port, (char*)data, r);
     return r;
 }
 
@@ -44,7 +44,7 @@ int recv_msg(int sfd, void* buffer, int size) {
     if (r < 0)
         printf("[INFO] Failed to receive message from %s:%s\n\n", host_name, port);
     else
-        printf("[%s:%s] > \"%s\"\n\n", host_name, port, (char*)buffer);
+        printf("[%s:%s] > \"%s\" = %d bytes\n\n", host_name, port, (char*)buffer, r);
     return r;
 }
 
@@ -117,7 +117,7 @@ int main(int argc, char* argv[]) {
     }
     if (!isUInt(argv[2])) {
         fprintf(stderr, "[ERROR] Argument <port_number> must be an unsigned int.\n");
-        return EXIT_FAILURE;
+        return EXIT_FAILURE; 
     }
 
     host_name = argv[1];
@@ -187,7 +187,7 @@ int main(int argc, char* argv[]) {
 
     game.data.character_names = characters_names;
     game.data.character_items = &characters_items[0][0];
-    Game_Init(&game, renderer);
+    Game_init(&game, renderer);
 
     while(!game.quit) {
         Uint64 start_time = SDL_GetPerformanceCounter();
@@ -208,7 +208,7 @@ int main(int argc, char* argv[]) {
 
         pthread_mutex_lock(&mutex);
         
-        Game_Update(&game);
+        Game_update(&game);
 
         if (game.mouse_click) {
             // connect to server when button pressed : 
@@ -236,13 +236,12 @@ int main(int argc, char* argv[]) {
                         close(socket_fd);
                         game.connected = false;
                     }
+                    send_msg(socket_fd, "ack", 4);
 
                     // start thread asap
                     pthread_t thread;
                     pthread_create(&thread, NULL, receive_server_msgs_thread, NULL);
                     printf("[INFO] Waiting for server messages in thread %lu \n\n", thread);
-                    sleep(0.2);
-                    send_msg(socket_fd, "ack", 4);
                 }
             }
             /*else {
@@ -258,18 +257,18 @@ int main(int argc, char* argv[]) {
             }*/
         }
 
-        Game_Render(&game);
+        Game_render(&game);
         pthread_mutex_unlock(&mutex);
         
         // limit FPS
         float elapsed_s = (SDL_GetPerformanceCounter() - start_time) / (float)SDL_GetPerformanceFrequency();
-        SDL_Delay(fmax(0, 16.66 - elapsed_s*1000));
+        SDL_Delay(fmax(0, 33.33 - elapsed_s*1000));
         elapsed_s = (SDL_GetPerformanceCounter() - start_time) / (float)SDL_GetPerformanceFrequency();
         sprintf(window_title, "Sherlock 13 Online ! %s - FPS : %f - frame duration : %f ms", player_name, 1.0/elapsed_s, elapsed_s*1000);
         SDL_SetWindowTitle(window, window_title);
     }
 
-    Game_Terminate(&game);
+    Game_terminate(&game);
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

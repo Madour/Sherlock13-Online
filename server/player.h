@@ -21,6 +21,6 @@ typedef struct Player {
 } Player;
 
 
-void Player_Copy(Player* dest, Player* src);
+void Player_copy(Player* dest, Player* src);
 
 #endif//PLAYER_H

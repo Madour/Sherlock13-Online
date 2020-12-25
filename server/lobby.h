@@ -16,14 +16,20 @@ typedef struct Lobby {
     MsgQueue queue;
     bool send_next;
 
+    pthread_mutex_t mutex_players;
+    bool locked;
+
     // global lobbies state
     int* lobby_states;
 } Lobby;
 
 
-void Lobby_Broadcast(Lobby* lobby, char* msg, unsigned int size);
+void Lobby_lock(Lobby* lobby, Player* player);
+void Lobby_unlock(Lobby* lobby, Player* player);
 
-void Lobby_WaitAcks(Lobby* lobby);
+void Lobby_broadcast(Lobby* lobby, char* msg, unsigned int size);
+
+void Lobby_waitAcks(Lobby* lobby);
 
 void* manage_lobby_thread(void* lobby);
 

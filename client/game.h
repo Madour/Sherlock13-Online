@@ -85,12 +85,12 @@ typedef struct Game {
 } Game;
 
 
-void Game_Init(Game* game, SDL_Renderer* renderer);
+void Game_init(Game* game, SDL_Renderer* renderer);
 
-void Game_Update(Game* game);
+void Game_update(Game* game);
 
-void Game_Render(Game* game);
+void Game_render(Game* game);
 
-void Game_Terminate(Game* game);
+void Game_terminate(Game* game);
 
 #endif//GAME_H

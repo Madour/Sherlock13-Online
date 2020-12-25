@@ -1,5 +1,5 @@
 CC=gcc
-CCFLAGS= -Wall -Wpedantic
+CCFLAGS= -Wall -Wpedantic -g
 
 # include folders
 INCFLAGS = -I.

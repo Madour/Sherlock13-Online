@@ -1,13 +1,13 @@
 #include "client/game.h"
 
 
-static void Game_InitTextures(Game* game);
+static void Game_initTextures(Game* game);
 
-static void Game_InitSprites(Game* game);
+static void Game_initSprites(Game* game);
 
-static void Game_InitTexts(Game* game);
+static void Game_initTexts(Game* game);
 
-void Game_Init(Game* game, SDL_Renderer* renderer) {
+void Game_init(Game* game, SDL_Renderer* renderer) {
     game->quit = false;
     
     game->mouse_click = false;
@@ -30,7 +30,7 @@ void Game_Init(Game* game, SDL_Renderer* renderer) {
     game->font = TTF_OpenFont("assets/sans.ttf", 15);
 
     // load textures
-    Game_InitTextures(game);
+    Game_initTextures(game);
 
     // create the grids
     game->grid1.position = (SDL_Point){10, 10};
@@ -46,13 +46,13 @@ void Game_Init(Game* game, SDL_Renderer* renderer) {
     game->grid2.colomns_nb = 1; game->grid2.rows_nb = 13;
 
     // create the sprites
-    Game_InitSprites(game);
+    Game_initSprites(game);
     
     // create the texts
-    Game_InitTexts(game);
+    Game_initTexts(game);
 }
 
-void Game_InitTextures(Game* game) {
+void Game_initTextures(Game* game) {
     char buffer[64];
     // load all cards textures
     for (int i = 0; i < 13; ++i) {
@@ -69,7 +69,7 @@ void Game_InitTextures(Game* game) {
     game->textures.btn_go = SDLex_LoadTextureFromFile(game->renderer, "assets/gobutton.png");
 }
 
-void Game_InitSprites(Game* game) {
+void Game_initSprites(Game* game) {
     SDL_Rect zero_rect = {0, 0, 0, 0};
     SDL_Point zero_point = {0, 0};
     SDL_FPoint zero_fpoint = {0, 0};
@@ -103,7 +103,7 @@ void Game_InitSprites(Game* game) {
     }
 }
 
-void Game_InitTexts(Game* game) {
+void Game_initTexts(Game* game) {
     for (int i = 0; i < 8; ++i) {
         if (i < 4)
             game->texts.items_nb[i] = SDLex_CreateText(game->renderer, "8", game->font);
@@ -130,7 +130,7 @@ void Game_InitTexts(Game* game) {
     }
 }
 
-void Game_Update(Game* game) {
+void Game_update(Game* game) {
     SDL_Rect cell;
     game->hovered.item = -1;
     game->hovered.player = -1;
@@ -188,7 +188,7 @@ void Game_Update(Game* game) {
 }
 
 
-void Game_Render(Game* game) {
+void Game_render(Game* game) {
     SDL_Renderer* renderer = game->renderer;
 
     SDL_SetRenderDrawColor(renderer, 200, 200, 255, 255);
@@ -301,7 +301,7 @@ void Game_Render(Game* game) {
     SDL_RenderPresent(renderer);
 }
 
-void Game_Terminate(Game* game) {
+void Game_terminate(Game* game) {
     for (int i = 0; i < 13; ++i) {
         SDL_DestroyTexture(game->textures.cards[i]);
         SDLex_DestroyText(game->texts.character_names[i]);
