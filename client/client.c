@@ -24,6 +24,7 @@
 
 char* host_name;
 char* port;
+char* my_name;
 int socket_fd = -1;
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -100,12 +101,15 @@ void* receive_server_msgs_thread(void* args) {
 
             case (int)GameStart:
                 current_i = 1;
-                printf("Receiving player names : \n");
+                game.started = true;
+                printf("Received player names : \n");
                 // fill players name infos
                 for (int i = 0; i < 4; ++i) {
                     len = buffer[current_i] - '0';
                     memcpy(game.players[i].name, &buffer[current_i+1], sizeof(char)*len);
                     game.players[i].name[len] = '\0';
+                    if (strcmp(game.players[i].name, my_name) == 0)
+                        game.my_index = i;
                     game.texts.player_names[i] = SDLex_CreateText(game.renderer, game.players[i].name, game.font);
                     current_i += len+1;
                     printf("   - %s\n", game.players[i].name);
@@ -116,12 +120,17 @@ void* receive_server_msgs_thread(void* args) {
             case (int)DistribCards:
                 printf("Received my cards : \n");
                 for (int i = 0; i < 3; ++i) {
-                    printf("    - %s\n", DATA.character_names[((int)buffer[1+i])-1]);
+                    int card_id = ((int)buffer[1+i])-1;
+                    game.my_cards[i] = card_id;
+                    game.selected.checkmarks[card_id] = 1;
+                    game.sprites.cards[i].texture = game.textures.cards[card_id];
+                    printf("    - %s\n", DATA.character_names[card_id]);
                 }
+                printf("\n");
                 break;
 
             case (int)QuitLobby:
-                game.connected = false;
+                Game_reset(&game);
                 for (int i = 0; i < 4; ++i) {
                     if (game.texts.player_names[i] != NULL)
                         SDLex_DestroyText(game.texts.player_names[i]);
@@ -153,11 +162,11 @@ int main(int argc, char* argv[]) {
 
     host_name = argv[1];
     port = argv[2];
-    char* player_name = argv[3];
-    int len = strlen(player_name);
-    player_name[(len > 32 ? 32 : len)] = '\0';
+    my_name = argv[3];
+    int len = strlen(my_name);
+    my_name[(len > 32 ? 32 : len)] = '\0';
 
-    printf("Player %s\n", player_name);
+    printf("Player %s\n", my_name);
 
     struct addrinfo* server_ai;
     struct addrinfo hints = {
@@ -219,7 +228,7 @@ int main(int argc, char* argv[]) {
                         return EXIT_FAILURE;
                     }
                     if (connect(socket_fd, server_ai->ai_addr, server_ai->ai_addrlen)) {
-                        fprintf(stderr, "[ERROR] Connection with the server failed.\n");
+                        fprintf(stderr, "[ERROR] Connection to the server failed.\n");
                         perror("connect");
                         return EXIT_FAILURE;
                     }
@@ -227,7 +236,7 @@ int main(int argc, char* argv[]) {
                     printf("[INFO] Connected to server %s:%u \n\n", inet_ntoa(((struct sockaddr_in*)server_ai->ai_addr)->sin_addr), ntohs(((struct sockaddr_in*)server_ai->ai_addr)->sin_port));
                     
                     // send player name
-                    int msg_size = send_msg(socket_fd, player_name, strlen(player_name)+1);
+                    int msg_size = send_msg(socket_fd, my_name, strlen(my_name)+1);
                     if (msg_size <= 0) {
                         fprintf(stderr, "[ERROR] Failed to send message to server. Closing connection.\n\n");
                         close(socket_fd);
@@ -263,7 +272,7 @@ int main(int argc, char* argv[]) {
         float elapsed_s = (SDL_GetPerformanceCounter() - start_time) / (float)SDL_GetPerformanceFrequency();
         SDL_Delay(fmax(0, 33.33 - elapsed_s*1000));
         elapsed_s = (SDL_GetPerformanceCounter() - start_time) / (float)SDL_GetPerformanceFrequency();
-        sprintf(window_title, "Sherlock 13 Online ! %s - FPS : %f - frame duration : %f ms", player_name, 1.0/elapsed_s, elapsed_s*1000);
+        sprintf(window_title, "Sherlock 13 Online ! %s - FPS : %f - frame duration : %f ms", my_name, 1.0/elapsed_s, elapsed_s*1000);
         SDL_SetWindowTitle(window, window_title);
     }
 

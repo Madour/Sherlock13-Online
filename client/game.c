@@ -9,29 +9,11 @@ static void Game_initTexts(Game* game);
 
 void Game_init(Game* game, SDL_Renderer* renderer) {
     game->data = &DATA;
-    game->quit = false;
-    
-    game->mouse_click = false;
-    game->mouse_pos.x = game->mouse_pos.y = 0;
-    
-    game->connected = false;
-    game->players_nb = 0;
-    game->my_index = 0;
+    Game_reset(game);
 
-    game->started = false;
-
-    game->selected.item = -1;
-    game->selected.player = -1;
-    game->selected.character = -1;
-    for (int i = 0; i < 13; ++i)
-        game->selected.checkmarks[i] = -1;
-
-    // render data
+    // renderer data
     game->renderer = renderer;
     game->font = TTF_OpenFont("assets/sans.ttf", 15);
-
-    // load textures
-    Game_initTextures(game);
 
     // create the grids
     game->grid1.position = (SDL_Point){10, 10};
@@ -46,11 +28,34 @@ void Game_init(Game* game, SDL_Renderer* renderer) {
     game->grid2.padding_bottomright = (SDL_Point){40, 0};
     game->grid2.colomns_nb = 1; game->grid2.rows_nb = 13;
 
+    // load textures
+    Game_initTextures(game);
+
     // create the sprites
     Game_initSprites(game);
     
     // create the texts
     Game_initTexts(game);
+}
+
+void Game_reset(Game* game) {
+    game->quit = false;
+    
+    game->mouse_click = false;
+    game->mouse_pos.x = game->mouse_pos.y = 0;
+    
+    game->connected = false;
+    game->started = false;
+    game->players_nb = 0;
+
+    game->my_index = 0;
+    memset(game->my_cards, 0, sizeof(game->my_cards));
+    game->turn = 0;
+
+    game->started = false;
+
+    memset(&game->selected, -1, sizeof(struct Selection));
+    memset(&game->hovered, -1, sizeof(struct Hovering));
 }
 
 void Game_initTextures(Game* game) {
@@ -71,26 +76,23 @@ void Game_initTextures(Game* game) {
 }
 
 void Game_initSprites(Game* game) {
-    SDL_Rect zero_rect = {0, 0, 0, 0};
-    SDL_Point zero_point = {0, 0};
-    SDL_FPoint zero_fpoint = {0, 0};
     
     game->sprites.btn_connect = (SDLex_Sprite){
         game->textures.btn_connect,
-        zero_rect, 
-        (SDL_Point){game->grid1.position.x+30, game->grid1.position.y+2}, 
-        (SDL_FPoint){0.9, 0.9}
+        {0, 0, 0, 0}, 
+        {game->grid1.position.x+30, game->grid1.position.y+2}, 
+        {0.9, 0.9}
     };
     
-    game->sprites.btn_go = (SDLex_Sprite){game->textures.btn_go, zero_rect, zero_point, zero_fpoint};
+    game->sprites.btn_go = (SDLex_Sprite){game->textures.btn_go, {0, 0, 0, 0}, {490, 290}, {0.5, 0.5}};
 
     // create player cards sprites
     for (int i = 0; i < 3; ++i) {
         game->sprites.cards[i] = (SDLex_Sprite){
-            game->textures.cards[i],
-            zero_rect,
-            (SDL_Point){750, 110+200*i},
-            (SDL_FPoint){0.25, 0.25}
+            NULL,
+            {0, 0, 0, 0},
+            {750, 110+200*i},
+            {0.25, 0.25}
         };
     }
 
@@ -100,14 +102,14 @@ void Game_initSprites(Game* game) {
             game->grid1.position.x+game->grid1.padding_topleft.x+game->grid1.cell_size.x*i+5,
             game->grid1.position.y
         };
-        game->sprites.items[i] = (SDLex_Sprite){game->textures.items[i], zero_rect, pos, (SDL_FPoint){0.3, 0.3}};
+        game->sprites.items[i] = (SDLex_Sprite){game->textures.items[i], {0, 0, 0, 0}, pos, {0.3, 0.3}};
     }
 }
 
 void Game_initTexts(Game* game) {
     for (int i = 0; i < 8; ++i) {
         if (i < 4)
-            game->texts.items_nb[i] = SDLex_CreateText(game->renderer, "8", game->font);
+            game->texts.items_nb[i] = SDLex_CreateText(game->renderer, "5", game->font);
         else if (i == 4)
             game->texts.items_nb[i] = SDLex_CreateText(game->renderer, "4", game->font);
         else
@@ -132,6 +134,10 @@ void Game_initTexts(Game* game) {
 }
 
 void Game_update(Game* game) {
+    // nothing to do if game not started yet
+    if (!game->started)
+        return;
+
     SDL_Rect cell;
     game->hovered.item = -1;
     game->hovered.player = -1;
@@ -151,6 +157,9 @@ void Game_update(Game* game) {
 
     // check if hovering/selecting a player name cell
     for (int i = 1; i < game->grid1.rows_nb; ++i) {
+        // prevent selecting my own name 
+        if (i == game->my_index+1)
+            continue;
         cell = SDLex_GridGetCellRect(&game->grid1, -1, i);
         if (SDL_PointInRect(&game->mouse_pos, &cell)) {
             game->hovered.player = i-1;
@@ -164,6 +173,9 @@ void Game_update(Game* game) {
 
     // check if hovering/selecting a character name cell
     for (int i = 0; i < game->grid2.rows_nb; ++i) {
+        // prevent selecting my own cards
+        if (i == game->my_cards[0] || i == game->my_cards[1] || i == game->my_cards[2])
+            continue;
         cell = SDLex_GridGetCellRect(&game->grid2, 0, i);
         if (SDL_PointInRect(&game->mouse_pos, &cell)) {
             game->hovered.character = i;
@@ -177,6 +189,9 @@ void Game_update(Game* game) {
 
     // check if hovering/selecting check mark cell
     for (int i = 0; i < game->grid2.rows_nb; ++i) {
+        // prevent unchecking my own cards
+        if (i == game->my_cards[0] || i == game->my_cards[1] || i == game->my_cards[2])
+            continue;
         cell = SDLex_GridGetCellRect(&game->grid2, 1, i);
         if (SDL_PointInRect(&game->mouse_pos, &cell)) {
             game->hovered.checkmark = i;
@@ -195,11 +210,6 @@ void Game_render(Game* game) {
     SDL_SetRenderDrawColor(renderer, 200, 200, 255, 255);
     SDL_RenderClear(renderer);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-
-    // draw cards
-    SDLex_RenderDrawSprite(renderer, &game->sprites.cards[0]);
-    SDLex_RenderDrawSprite(renderer, &game->sprites.cards[1]);
-    SDLex_RenderDrawSprite(renderer, &game->sprites.cards[2]);
 
     SDL_Rect cell;
     // fill hovered item cell
@@ -256,7 +266,6 @@ void Game_render(Game* game) {
         }
     }
 
-
     //draw items sprites and text (grid 1)
     for (int i = 0; i <8; ++i) {
         game->sprites.items[i].scale = (SDL_FPoint){0.4, 0.4};
@@ -267,7 +276,6 @@ void Game_render(Game* game) {
 
     // draw characters names and items (grid2)
     for (int i = 0; i < 13; ++i) {
-        //SDL_Point pos = {game->grid2.position.x+game->grid2.padding_topleft.x+12, game->grid2.position.y+game->grid2.cell_size.y*i+10};
         SDLex_RenderDrawText(renderer, game->texts.character_names[i]);
         for (int j = 0; j < 3; ++j) {
             int item = game->data->character_items[i][j];
@@ -292,7 +300,18 @@ void Game_render(Game* game) {
     else if (!game->started) {
         if (game->texts.wait_players != NULL)
             SDLex_RenderDrawText(renderer, game->texts.wait_players);
-    } 
+    }
+
+    if (game->started) {
+        // draw cards
+        for (int i = 0; i < 3; ++i)
+            if (game->sprites.cards[i].texture)
+               SDLex_RenderDrawSprite(renderer, &game->sprites.cards[i]);
+
+        if (game->turn == game->my_index) {
+            SDLex_RenderDrawSprite(renderer, &game->sprites.btn_go);
+        }
+    }
 
     // draw grids
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);

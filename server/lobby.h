@@ -16,7 +16,7 @@ typedef struct Lobby {
 
 
     MsgQueue queue;
-    bool send_next;
+    pthread_cond_t send_next;
 
     pthread_mutex_t mutex;
     bool locked;
@@ -25,6 +25,7 @@ typedef struct Lobby {
     int* lobby_states;
 } Lobby;
 
+void Lobby_reset(Lobby* lobby);
 
 void Lobby_lock(Lobby* lobby, Player* player);
 void Lobby_unlock(Lobby* lobby, Player* player);

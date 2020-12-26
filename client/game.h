@@ -58,11 +58,14 @@ typedef struct Game {
     
     int players_nb;
     int my_index;
+    int turn;
 
     bool started;
 
     // player info
     Player players[4];
+
+    int my_cards[3];
 
     // game data
     struct Selection selected;
@@ -83,6 +86,8 @@ typedef struct Game {
 
 
 void Game_init(Game* game, SDL_Renderer* renderer);
+
+void Game_reset(Game* game);
 
 void Game_update(Game* game);
 

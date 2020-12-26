@@ -92,14 +92,7 @@ int main(int argc, char* argv[]) {
     memset(lobbies_array, 0, sizeof(Lobby)*MAX_LOBBIES);
     for (int i = 0; i < MAX_LOBBIES; i++) {
         lobbies_array[i].index = i;
-        lobbies_array[i].send_next = false;
-        for (int p = 0; p < 4; ++p)
-            lobbies_array[i].players[p] = NULL;
-        MsgQueue_init(&lobbies_array[i].queue);
-
-        pthread_mutex_init(&lobbies_array[i].mutex, NULL);
-        lobbies_array[i].locked = false;
-
+        Lobby_reset(&lobbies_array[i]);
         lobbies_array[i].lobby_states = &lobbies_states;
     }
     

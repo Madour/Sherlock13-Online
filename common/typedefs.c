@@ -17,19 +17,21 @@ const struct GameData DATA = {
         "Mary Morstan",
         "James Moriarty"
     },
+    // items : 
+
     {
-        {4, 7,-1},  // seb moran
-        {3, 4, 2},  // iren adler
-        {3, 5, 1},  // insp lestrade
-        {3, 7, 1},  //insp gregson
-        {3, 0,-1},  // insp baynes
-        {3, 7,-1},  // insp bradstreet
-        {3, 6, 5},  // insp hopkins
-        {6, 0, 7},  // sherlock
-        {6, 5, 7},  // watson
-        {6, 0, 1},  // mycroft
-        {6, 2,-1},  // hudson
-        {1, 2,-1},  // mary morstan
-        {4, 0,-1},  // james moriarty
+        {2, 7,-1},  // seb moran
+        {5, 1, 7},  // iren adler
+        {4, 6, 3},  // insp lestrade
+        {4, 2, 3},  // insp gregson
+        {1, 3,-1},  // insp baynes
+        {2, 3,-1},  // insp bradstreet
+        {6, 0, 3},  // insp hopkins
+        {2, 1, 0},  // sherlock
+        {2, 6, 0},  // watson
+        {4, 1, 0},  // mycroft
+        {5, 0,-1},  // hudson
+        {5, 4,-1},  // mary morstan
+        {7, 1,-1},  // james moriarty
     }
 };
