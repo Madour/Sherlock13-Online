@@ -60,7 +60,7 @@ typedef struct SDLex_Sprite {
  * @param sprite 
  */
 void SDLex_RenderDrawSprite(SDL_Renderer* renderer, SDLex_Sprite* sprite);
-void SDLex_RenderDrawSpriteAt(SDL_Renderer* renderer, SDLex_Sprite* sprite, SDL_Point pos);
+void SDLex_RenderDrawSpriteAt(SDL_Renderer* renderer, SDLex_Sprite* sprite, int x, int y);
 
 //------------------------------------------------//
 
@@ -82,7 +82,7 @@ void SDLex_TextSetString(SDLex_Text* text, char* string);
 
 void SDLex_RenderDrawText(SDL_Renderer*, SDLex_Text* text);
 
-void SDLex_RenderDrawTextAt(SDL_Renderer*, SDLex_Text* text, SDL_Point pos);
+void SDLex_RenderDrawTextAt(SDL_Renderer*, SDLex_Text* text, int x, int y);
 
 void SDLex_DestroyText(SDLex_Text* text);
 

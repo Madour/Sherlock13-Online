@@ -8,12 +8,13 @@
 
 #define MAX_LOBBIES 32
 
+
 typedef struct Lobby {
     int index;
     Player* players[4];
     int players_nb;
 
-
+    int suspect;
 
     MsgQueue queue;
     pthread_cond_t send_next;

@@ -37,41 +37,45 @@ SDL_Point SDLex_GetTextureSize(SDL_Texture* texture) {
 
 
 void SDLex_RenderDrawSprite(SDL_Renderer* renderer, SDLex_Sprite* sprite) {
-    int w = sprite->texture_rect.w;
-    int h = sprite->texture_rect.h;
-    int x = sprite->texture_rect.x;
-    int y = sprite->texture_rect.y; 
+    int tw = sprite->texture_rect.w;
+    int th = sprite->texture_rect.h;
+    int tx = sprite->texture_rect.x;
+    int ty = sprite->texture_rect.y; 
     float scalex = sprite->scale.x;
     float scaley = sprite->scale.y;
-    if (w == 0 || h == 0) {
-        SDL_QueryTexture(sprite->texture, NULL, NULL, &w, &h);
+    if (tw == 0 || th == 0) {
+        SDL_QueryTexture(sprite->texture, NULL, NULL, &tw, &th);
+        sprite->texture_rect.w = tw;
+        sprite->texture_rect.h = th;
     }
     if (scalex <= 0.0001 && scaley <= 0.0001) {
         scalex = scaley = 1.;
     }
 
-    SDL_Rect source = {x, y, w, h};
-    SDL_FRect dest = {sprite->position.x, sprite->position.y, w*scalex, h*scaley};
+    SDL_Rect source = {tx, ty, tw, th};
+    SDL_FRect dest = {sprite->position.x, sprite->position.y, tw*scalex, th*scaley};
     
     SDL_RenderCopyF(renderer, sprite->texture, &source, &dest);
 }
 
-void SDLex_RenderDrawSpriteAt(SDL_Renderer* renderer, SDLex_Sprite* sprite, SDL_Point pos) {
-    int w = sprite->texture_rect.w;
-    int h = sprite->texture_rect.h;
-    int x = sprite->texture_rect.x;
-    int y = sprite->texture_rect.y; 
+void SDLex_RenderDrawSpriteAt(SDL_Renderer* renderer, SDLex_Sprite* sprite, int x, int y) {
+    int tw = sprite->texture_rect.w;
+    int th = sprite->texture_rect.h;
+    int tx = sprite->texture_rect.x;
+    int ty = sprite->texture_rect.y; 
     float scalex = sprite->scale.x;
     float scaley = sprite->scale.y;
-    if (w == 0 || h == 0) {
-        SDL_QueryTexture(sprite->texture, NULL, NULL, &w, &h);
+    if (tw == 0 || th == 0) {
+        SDL_QueryTexture(sprite->texture, NULL, NULL, &tw, &th);
+        sprite->texture_rect.w = tw;
+        sprite->texture_rect.h = th;
     }
     if (scalex <= 0.0001 && scaley <= 0.0001) {
         scalex = scaley = 1.;
     }
 
-    SDL_Rect source = {x, y, w, h};
-    SDL_FRect dest = {pos.x, pos.y, w*scalex, h*scaley};
+    SDL_Rect source = {tx, ty, tw, th};
+    SDL_FRect dest = {x, y, tw*scalex, th*scaley};
     
     SDL_RenderCopyF(renderer, sprite->texture, &source, &dest);
 }
@@ -110,8 +114,8 @@ void SDLex_RenderDrawText(SDL_Renderer* renderer, SDLex_Text* text) {
     text->renderer = renderer;
 }
 
-void SDLex_RenderDrawTextAt(SDL_Renderer* renderer, SDLex_Text* text, SDL_Point pos) {
-    SDLex_RenderDrawSpriteAt(renderer, &text->drawable, pos);
+void SDLex_RenderDrawTextAt(SDL_Renderer* renderer, SDLex_Text* text, int x, int y) {
+    SDLex_RenderDrawSpriteAt(renderer, &text->drawable, x, y);
     text->renderer = renderer;
 }
 

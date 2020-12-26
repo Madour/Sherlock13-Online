@@ -7,7 +7,7 @@
 
 typedef struct Player {
     char name[32];
-    char index;
+    int cards[3];
 } Player;
 
 struct Selection {
@@ -41,8 +41,10 @@ struct GameSprites {
 
 struct GameTexts {
     SDLex_Text* wait_players;
+    SDLex_Text* who_is_playing;
     SDLex_Text* items_nb[8];
-    SDLex_Text* player_names[4];
+    SDLex_Text* players_names[4];
+    SDLex_Text* players_item_count[4][8];
     SDLex_Text* character_names[13];
 };
 
@@ -55,17 +57,16 @@ typedef struct Game {
 
     // connections info
     bool connected;
-    
     int players_nb;
-    int my_index;
-    int turn;
 
     bool started;
+    int turn;
 
-    // player info
+    // players info
     Player players[4];
 
-    int my_cards[3];
+    Player* me;
+    int my_index;
 
     // game data
     struct Selection selected;

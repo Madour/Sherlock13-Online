@@ -85,7 +85,7 @@ void* receive_server_msgs_thread(void* args) {
             break;
         }
         int current_i = 1;
-        int len;
+        int name_len;
 
         pthread_mutex_lock(&mutex);
         switch (buffer[0]) {
@@ -105,13 +105,20 @@ void* receive_server_msgs_thread(void* args) {
                 printf("Received player names : \n");
                 // fill players name infos
                 for (int i = 0; i < 4; ++i) {
-                    len = buffer[current_i] - '0';
-                    memcpy(game.players[i].name, &buffer[current_i+1], sizeof(char)*len);
-                    game.players[i].name[len] = '\0';
-                    if (strcmp(game.players[i].name, my_name) == 0)
+                    // get name length
+                    name_len = buffer[current_i] - '0';
+                    // copy name string to player name field
+                    memcpy(game.players[i].name, &buffer[current_i+1], sizeof(char)*name_len);
+                    game.players[i].name[name_len] = '\0';
+                    // if name is my name, fill the shortcuts
+                    if (strcmp(game.players[i].name, my_name) == 0) {
+                        game.me = &game.players[i];
                         game.my_index = i;
-                    game.texts.player_names[i] = SDLex_CreateText(game.renderer, game.players[i].name, game.font);
-                    current_i += len+1;
+                    }
+                    game.texts.players_names[i] = SDLex_CreateText(game.renderer, game.players[i].name, game.font);
+                    SDL_Point pos = {game.grid1.position.x+20 , game.grid1.position.y+15+(game.grid1.cell_size.y)*(i+1)};
+                    SDLex_TextSetPosition(game.texts.players_names[i], pos.x, pos.y);
+                    current_i += name_len+1;
                     printf("   - %s\n", game.players[i].name);
                 }
                 printf("Game started !\n\n");
@@ -121,7 +128,7 @@ void* receive_server_msgs_thread(void* args) {
                 printf("Received my cards : \n");
                 for (int i = 0; i < 3; ++i) {
                     int card_id = ((int)buffer[1+i])-1;
-                    game.my_cards[i] = card_id;
+                    game.me->cards[i] = card_id;
                     game.selected.checkmarks[card_id] = 1;
                     game.sprites.cards[i].texture = game.textures.cards[card_id];
                     printf("    - %s\n", DATA.character_names[card_id]);
@@ -132,9 +139,9 @@ void* receive_server_msgs_thread(void* args) {
             case (int)QuitLobby:
                 Game_reset(&game);
                 for (int i = 0; i < 4; ++i) {
-                    if (game.texts.player_names[i] != NULL)
-                        SDLex_DestroyText(game.texts.player_names[i]);
-                    game.texts.player_names[i] = NULL;
+                    if (game.texts.players_names[i] != NULL)
+                        SDLex_DestroyText(game.texts.players_names[i]);
+                    game.texts.players_names[i] = NULL;
                 }
                 break;
 
@@ -252,17 +259,6 @@ int main(int argc, char* argv[]) {
                     printf("[INFO] Waiting for server messages in thread %lu \n\n", thread);
                 }
             }
-            /*else {
-                // send mouse coordinates (for testing)
-                char buffer[256];
-                sprintf(buffer, "(%d, %d)", game.mouse_pos.x, game.mouse_pos.y);
-                int msg_size = send_msg(socket_fd, buffer, strlen(buffer));
-                if (msg_size <= 0) {
-                    printf("[ERROR] Failed to write to server. Closing connection.\n\n");
-                    close(socket_fd);
-                    game.connected = false;
-                }
-            }*/
         }
 
         Game_render(&game);
