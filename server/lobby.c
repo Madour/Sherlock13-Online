@@ -171,10 +171,6 @@ void* manage_player_thread(void* player) {
         }
         msg_size = recv_msg(this_player, buffer, sizeof(buffer));
         
-        if (this_player->leave) {
-            printf("[INFO] Player %s leaving lobby %d\n\n", this_player->name, this_lobby->index);
-            break;
-        }
         if (msg_size <= 0) {
             
             printf("[INFO] Failed to read from player %s:%u\n[INFO] Closing connection with player %s from lobby %d.\n\n", this_player->client.ip, this_player->client.port, this_player->name, this_lobby->index);
@@ -183,6 +179,11 @@ void* manage_player_thread(void* player) {
                 
             printf("[LOCK] Player %s waiting for Mutex lock\n\n", this_player->name);
             Lobby_lock(this_lobby, this_player);
+
+            if (this_player->leave) {
+                printf("[INFO] Player %s leaving lobby %d\n\n", this_player->name, this_lobby->index);
+                break;
+            }
 
             // player was the only on in lobby
             if (this_lobby->players_nb == 1) {
@@ -241,12 +242,16 @@ int send_msg(Player* player, void* buffer, int size) {
         printf("[INFO] Failed to send message to %s (lobby %d): \"%s\"\n\n", player->name, player->lobby->index, data);
     }
     else {
-        char string[256];
-        sprintf(string, "[%s:%d] %d:%s < \"%s\" = ", player->client.ip, player->client.port, player->lobby->index, player->name, data);
+        char temp[256];
+        char string[256] = "";
+        sprintf(temp, "[%s:%d] %d:%s < \"%s\" = ", player->client.ip, player->client.port, player->lobby->index, player->name, data);
+        strcat(string, temp);
         for (int i = 0; i < r; ++i) {
-            sprintf(string, "%02x ", data[i]);
+            sprintf(temp, "%02x ", data[i]);
+            strcat(string, temp);
         }
-        sprintf(string, "(%d bytes)", r);
+        sprintf(temp, "(%d bytes)", r);
+        strcat(string, temp);
         printf("%s\n\n", string);
     }
     return r;
@@ -258,12 +263,16 @@ int recv_msg(Player* player, void* buffer, int size) {
     if (r < 0)
         printf("[INFO] Failed to receive message from %s [%s:%d]\n\n", player->name, player->client.ip, player->client.port);
     else {
+        char temp[256];
         char string[256] = "";
-        sprintf(string, "[%s:%d] %d:%s > \"%s\" = ", player->client.ip, player->client.port, player->lobby->index, player->name, data);
+        sprintf(temp, "[%s:%d] %d:%s > \"%s\" = ", player->client.ip, player->client.port, player->lobby->index, player->name, data);
+        strcat(string, temp);
         for (int i = 0; i < r; ++i) {
-            sprintf(string, "%02x ", data[i]);
+            sprintf(temp, "%02x ", data[i]);
+            strcat(string, temp);
         }
-        sprintf(string, "(%d bytes)", r);
+        sprintf(temp, "(%d bytes)", r);
+        strcat(string, temp);
         printf("%s\n\n", string);
     }
     return r;

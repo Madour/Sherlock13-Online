@@ -36,12 +36,16 @@ int send_msg(int sfd, void* buffer, int size) {
         printf("[INFO] Failed to send message : \"%s\"\n\n", data);
     }
     else {
-        char string[256];
-        sprintf(string, "[%s:%s] < \"%s\" = ", host_name, port, data);
+        char temp[256];
+        char string[256] = "";
+        sprintf(temp, "[%s:%s] < \"%s\" = ", host_name, port, data);
+        strcat(string, temp);
         for (int i = 0; i < r; ++i) {
-            sprintf(string, "%02x ", data[i]);
+            sprintf(temp, "%02x ", data[i]);
+            strcat(string, temp);
         }
-        sprintf(string, "(%d bytes)", r);
+        sprintf(temp, "(%d bytes)", r);
+        strcat(string, temp);
         printf("%s\n\n", string);
     }
     return r;
@@ -53,12 +57,16 @@ int recv_msg(int sfd, void* buffer, int size) {
     if (r < 0)
         printf("[INFO] Failed to receive message from %s:%s\n\n", host_name, port);
     else {
-        char string[256];
-        sprintf(string, "[%s:%s] > \"%s\" = ", host_name, port, data);
+        char temp[256];
+        char string[256] = "";
+        sprintf(temp, "[%s:%s] > \"%s\" = ", host_name, port, data);
+        strcat(string, temp);
         for (int i = 0; i < r; ++i) {
-            sprintf(string, "%02x ", data[i]);
+            sprintf(temp, "%02x ", data[i]);
+            strcat(string, temp);
         }
-        sprintf(string, "(%d bytes)", r);
+        sprintf(temp, "(%d bytes)", r);
+        strcat(string, temp);
         printf("%s\n\n", string);
     }
     return r;
