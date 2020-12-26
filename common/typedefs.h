@@ -5,7 +5,19 @@ typedef enum MsgCode {
     WaitingPlayers='W',
     GameStart='S',
     DistribCards='C',
-    PlayerTurn='P',
+
+    PlayerTurn='T',
+
+    AskItem='I',
+    AnswerItem='J',
+
+    AskPlayer='P',
+    AnswerPlayer='R',
+
+    GuessSuspect='G',
+    AnswerSuspect='H',
+
+    Victory='V',
     QuitLobby='Q',
 } MsgCode;
 

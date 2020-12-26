@@ -32,7 +32,12 @@ extern const SDL_Color SDL_ex_CYAN;
  */
 SDL_Texture* SDLex_LoadTextureFromFile(SDL_Renderer* renderer, const char* filename);
 
-
+/**
+ * @brief Returns the Size of a given SDL texture
+ * 
+ * @param texture 
+ * @return SDL_Point 
+ */
 SDL_Point SDLex_GetTextureSize(SDL_Texture* texture);
 
 //------------------------------------------------//
@@ -52,9 +57,16 @@ typedef struct SDLex_Sprite {
     SDL_FPoint scale;
 } SDLex_Sprite;
 
+/**
+ * @brief Returns the global bounds of a SDLex sprite
+ * 
+ * @param sprite 
+ * @return SDL_FRect Sprite bounds
+ */
+SDL_Rect SDLex_SpriteGetBounds(SDLex_Sprite* sprite);
 
 /**
- * @brief Render a SDLex_Sprite on a Renderer
+ * @brief Render a SDLex sprite on a SDL renderer
  * 
  * @param renderer 
  * @param sprite 

@@ -224,7 +224,7 @@ void Game_update(Game* game) {
 void Game_render(Game* game) {
     SDL_Renderer* renderer = game->renderer;
 
-    SDL_SetRenderDrawColor(renderer, 200, 200, 255, 255);
+    SDL_SetRenderDrawColor(renderer, 220, 220, 255, 255);
     SDL_RenderClear(renderer);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 
@@ -282,7 +282,6 @@ void Game_render(Game* game) {
             SDL_RenderDrawLine(renderer, cell.x+cell.w, cell.y, cell.x, cell.y+cell.h);
         }
     }
-
     //draw items sprites and text (grid 1)
     for (int i = 0; i <8; ++i) {
         game->sprites.items[i].scale = (SDL_FPoint){0.4, 0.4};
@@ -291,7 +290,6 @@ void Game_render(Game* game) {
         cell = SDLex_GridGetCellRect(&game->grid1, i, 0);
         SDLex_RenderDrawTextAt(renderer, game->texts.items_nb[i], cell.x+49, cell.y+30);
     }
-
     // draw characters names and items (grid2)
     for (int i = 0; i < 13; ++i) {
         SDLex_RenderDrawText(renderer, game->texts.character_names[i]);
@@ -304,21 +302,6 @@ void Game_render(Game* game) {
         }
     }
 
-    // draw players names
-    for (int i = 0; i < 4; ++i) {
-        if (game->texts.players_names[i] != NULL) {
-            SDLex_RenderDrawText(renderer, game->texts.players_names[i]);
-        }
-
-        // draw players items number
-        for (int j = 0; j < 8; ++j) {
-            SDL_Rect cell = SDLex_GridGetCellRect(&game->grid1, j, i+1);
-            int digit = game->players_items_count[i][j];
-            if (digit < 0) digit += 12;
-            SDLex_RenderDrawTextAt(renderer, game->texts.digits[digit], cell.x+cell.w/2-5, cell.y+cell.h/2-10);
-        }
-    }
-    
     if (!game->connected) {
         SDLex_RenderDrawSprite(renderer, &game->sprites.btn_connect);
     }
@@ -326,16 +309,33 @@ void Game_render(Game* game) {
         if (game->texts.wait_players != NULL)
             SDLex_RenderDrawText(renderer, game->texts.wait_players);
     }
-    else {
+    else { // connected and game started
+        cell = SDLex_GridGetCellRect(&game->grid1, -1, game->my_index+1);
+        cell = (SDL_Rect){cell.x, cell.y, SDLex_GridGetSize(&game->grid1).x, game->grid1.cell_size.y};
+        // fill in yellow my row in the grid 
+        SDL_SetRenderDrawColor(renderer, 200, 240, 80, 200);
+        SDL_RenderFillRect(renderer, &cell);
         SDLex_RenderDrawText(renderer, game->texts.who_is_playing);
-    }
 
-    if (game->started) {
+        // draw players names
+        for (int i = 0; i < 4; ++i) {
+            if (game->texts.players_names[i] != NULL) {
+                SDLex_RenderDrawText(renderer, game->texts.players_names[i]);
+                // draw players items number
+                for (int j = 0; j < 8; ++j) {
+                    SDL_Rect cell = SDLex_GridGetCellRect(&game->grid1, j, i+1);
+                    int digit = game->players_items_count[i][j];
+                    if (digit < 0) digit += 12;
+                        SDLex_RenderDrawTextAt(renderer, game->texts.digits[digit], cell.x+cell.w/2-5, cell.y+cell.h/2-10);
+                }
+            }
+        }
+
         // draw cards
-        for (int i = 0; i < 3; ++i)
+        for (int i = 0; i < 3; ++i) 
             if (game->sprites.cards[i].texture)
                SDLex_RenderDrawSprite(renderer, &game->sprites.cards[i]);
-
+        // draw go button when it is my turn to play
         if (game->turn == game->my_index) {
             SDLex_RenderDrawSprite(renderer, &game->sprites.btn_go);
         }

@@ -75,14 +75,18 @@ int recv_msg(int sfd, void* buffer, int size) {
 
 void* receive_server_msgs_thread(void* args) {
     char buffer[256];
+    char tmp[64];
     while(1) {
         if (!game.connected)
             break;
         int msg_size = recv_msg(socket_fd, buffer, sizeof(buffer));
 
-        if (msg_size <= 0) {
+        if (msg_size < 0) {
             game.connected = false;
             break;
+        }
+        if (msg_size == 0) {
+            continue;
         }
         int current_i = 1;
         int name_len;
@@ -121,7 +125,7 @@ void* receive_server_msgs_thread(void* args) {
                     current_i += name_len+1;
                     printf("   - %s\n", game.players[i].name);
                 }
-                char tmp[64]; sprintf(tmp, "It is %s's turn.", game.players[game.turn].name);
+                sprintf(tmp, "It is %s's turn.", game.players[game.turn].name);
                 SDLex_TextSetString(game.texts.who_is_playing, tmp);
                     
                 printf("Game started !\n\n");
@@ -150,6 +154,13 @@ void* receive_server_msgs_thread(void* args) {
                     printf("    - %s\n", DATA.character_names[card_id]);
                 }
                 printf("\n");
+                break;
+
+            case (int)PlayerTurn:
+                game.turn = buffer[1] - '0';
+                sprintf(tmp, "It is %s's turn.", game.players[game.turn].name);
+                SDLex_TextSetString(game.texts.who_is_playing, tmp);
+                printf("     > %s is playing.\n\n", game.players[game.turn].name);
                 break;
 
             case (int)QuitLobby:
@@ -187,7 +198,7 @@ int main(int argc, char* argv[]) {
     port = argv[2];
     my_name = argv[3];
     int len = strlen(my_name);
-    my_name[(len > 32 ? 32 : len)] = '\0';
+    my_name[(len > 9 ? 9 : len)] = '\0';
 
     printf("Player %s\n", my_name);
 
@@ -242,7 +253,7 @@ int main(int argc, char* argv[]) {
         if (game.mouse_click) {
             // connect to server when button pressed : 
             if (!game.connected) {
-                SDL_Rect cell = SDLex_GridGetCellRect(&game.grid1, -1, 0);
+                SDL_Rect cell = SDLex_SpriteGetBounds(&game.sprites.btn_connect);
                 if (SDL_PointInRect(&game.mouse_pos, &cell)) {
                     // create socket and connect to server
                     socket_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -274,6 +285,42 @@ int main(int argc, char* argv[]) {
                     pthread_create(&thread, NULL, receive_server_msgs_thread, NULL);
                     printf("[INFO] Waiting for server messages in thread %lu \n\n", thread);
                 }
+            }
+            else if (game.turn == game.my_index) {
+                SDL_Rect cell = SDLex_SpriteGetBounds(&game.sprites.btn_go);
+                if (SDL_PointInRect(&game.mouse_pos, &cell)) {
+                    if (game.selected.item != -1 || game.selected.player != -1 || game.selected.character != -1) {
+                        if (game.selected.player > -1 && game.selected.item > -1) {
+                            // send AskPlayer
+                            char buffer[5];
+                            buffer[0] = AskPlayer;
+                            buffer[1] = game.my_index+'0';
+                            buffer[2] = game.selected.player+'0';
+                            buffer[3] = game.selected.item+'0';
+                            buffer[4] = '\0';
+                            send_msg(socket_fd, buffer, 5);
+                        }
+                        else if (game.selected.item > -1) {
+                            // send AskItem
+                            char buffer[4];
+                            buffer[0] = AskItem;
+                            buffer[1] = game.my_index+'0';
+                            buffer[2] = game.selected.item+'0';
+                            buffer[3] = '\0';
+                            send_msg(socket_fd, buffer, 4);
+                        }
+                        else if (game.selected.character > -1){
+                            // seld GuessSuspect
+                            char buffer[4];
+                            buffer[0] = GuessSuspect;
+                            buffer[1] = game.my_index+'0';
+                            buffer[2] = game.selected.character;
+                            buffer[3] = '\0';
+                            send_msg(socket_fd, buffer, 4);
+                        }
+                    }
+                }
+
             }
         }
 

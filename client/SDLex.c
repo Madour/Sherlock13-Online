@@ -35,6 +35,15 @@ SDL_Point SDLex_GetTextureSize(SDL_Texture* texture) {
     return texture_size;
 }
 
+SDL_Rect SDLex_SpriteGetBounds(SDLex_Sprite* sprite) {
+    return (SDL_Rect){
+        sprite->position.x,
+        sprite->position.y,
+        (int)(sprite->texture_rect.w*sprite->scale.x),
+        (int)(sprite->texture_rect.h*sprite->scale.y)
+    };
+}
+
 
 void SDLex_RenderDrawSprite(SDL_Renderer* renderer, SDLex_Sprite* sprite) {
     int tw = sprite->texture_rect.w;

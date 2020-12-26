@@ -33,6 +33,7 @@ typedef struct Lobby {
     int players_nb;
 
     int suspect;
+    int turn;
 
     MsgQueue queue;
     pthread_cond_t send_next;

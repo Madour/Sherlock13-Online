@@ -9,8 +9,15 @@
 #include "server/lobby.h"
 
 void Lobby_reset(Lobby* lobby) {
-    for (int p = 0; p < 4; ++p)
+    for (int p = 0; p < 4; ++p) {
+        if (lobby->players[p] != NULL)
+            free(lobby->players[p]);
         lobby->players[p] = NULL;
+    }
+
+    lobby->suspect = 0;
+    lobby->turn = 0;
+
     MsgQueue_init(&lobby->queue);
     pthread_cond_init(&lobby->send_next, NULL);
 
@@ -42,7 +49,7 @@ void Lobby_broadcast(Lobby* lobby, char* msg, unsigned int size) {
 inline void Lobby_waitAcks(Lobby* lobby) {
     bool acks[4] = {false, false, false, false};
     int acks_nb = 0;
-    for (int timeout = 1000; timeout > 0; --timeout) {
+    for (int timeout = 10000; timeout > 0; --timeout) {
         for (int i = 0; i < lobby->players_nb; ++i) {
             if (lobby->players[i] != NULL) {
                 pthread_mutex_unlock(&lobby->mutex);
@@ -101,7 +108,7 @@ void* manage_lobby_thread(void* lobby) {
     buffer[0] = (char)DistribCards;
     int taken_cards = 0;
     for (int i = 0; i < 4; ++i) {
-        printf("Player %d:%s cards : \n", this_lobby->index, this_lobby->players[i]->name);
+        printf("     > Player %d:%s cards : \n", this_lobby->index, this_lobby->players[i]->name);
         for (int j = 0; j < 3; ++j) {
             int card;
             bool found = false;
@@ -111,7 +118,7 @@ void* manage_lobby_thread(void* lobby) {
                     this_lobby->players[i]->cards[j] = card;
                     taken_cards |= 1 << card;
                     found = true;
-                    printf("  - %2d = %s\n", card, DATA.character_names[card]);
+                    printf("       - %2d = %s\n", card, DATA.character_names[card]);
                 }
             } while(!found);
             buffer[1+j] = (char)(card+1);
@@ -120,6 +127,11 @@ void* manage_lobby_thread(void* lobby) {
         MsgQueue_append(msg_queue, buffer, 5, i);
         printf("\n");
     }
+    for (int i = 0; i < 13; ++i)
+        if ( ((taken_cards >> i)&1) == 0 )
+            this_lobby->suspect = i;
+
+    printf("     > Lobby %d suspect is %s (%d)\n\n", this_lobby->index, DATA.character_names[this_lobby->suspect], this_lobby->suspect);
 
     bool close_lobby = false;
     bool first_msg = true;
@@ -192,7 +204,6 @@ void* manage_player_thread(void* player) {
         msg_size = recv_msg(this_player, buffer, sizeof(buffer));
         
         if (msg_size <= 0) {
-            
             printf("[INFO] Failed to read from player %s:%u\n[INFO] Closing connection with player %s from lobby %d.\n\n", this_player->client.ip, this_player->client.port, this_player->name, this_lobby->index);
             if (this_lobby->players_nb == 0 || this_player->leave) {
                 printf("[INFO] Player %s leaving lobby %d\n\n", this_player->name, this_lobby->index);
@@ -207,7 +218,6 @@ void* manage_player_thread(void* player) {
                 Lobby_unlock(this_lobby, this_player);
                 break;
             }
-
             // player was the only on in lobby
             if (this_lobby->players_nb == 1) {
                 this_lobby->players_nb--;
@@ -246,7 +256,32 @@ void* manage_player_thread(void* player) {
             Lobby_unlock(this_lobby, this_player);
             break;
         }
-        this_player->client.ack = (strcmp(buffer, "ack") == 0);
+        else if (strcmp(buffer, "ack") == 0){
+            this_player->client.ack = (strcmp(buffer, "ack") == 0);
+        }
+        else {
+            Lobby_lock(this_lobby, this_player);
+            switch (buffer[0]) {
+            case (int)AskItem:
+                break;
+            case (int)AskPlayer:
+                break;
+            case (int)GuessSuspect:
+                break;
+            
+            default:
+                break;
+            }
+            this_lobby->turn += 1;
+            this_lobby->turn %= 4;
+            buffer[0] = PlayerTurn;
+            buffer[1] = this_lobby->turn + '0';
+            buffer[2] = '\0';
+            MsgQueue_append(&this_lobby->queue, buffer, 3, -1);
+            pthread_cond_signal(&this_lobby->send_next);
+
+            Lobby_unlock(this_lobby, this_player);
+        }
     }
     close(this_player->client.sfd);
     if (this_player != NULL) {
