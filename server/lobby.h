@@ -2,12 +2,30 @@
 #define LOBBY_H
 
 #include <stdbool.h>
-#include "server/player.h"
 #include "server/msg_queue.h"
 
 
 #define MAX_LOBBIES 32
 
+
+typedef struct Client {
+    int sfd;
+    char ip[32];
+    int port;
+    bool ack;
+} Client;
+
+struct Lobby;
+
+typedef struct Player {
+    Client client;
+    int index;
+    char name[32];
+    int cards[3];
+
+    bool leave;
+    struct Lobby* lobby;
+} Player;
 
 typedef struct Lobby {
     int index;

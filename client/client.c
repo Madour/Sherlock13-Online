@@ -121,16 +121,32 @@ void* receive_server_msgs_thread(void* args) {
                     current_i += name_len+1;
                     printf("   - %s\n", game.players[i].name);
                 }
+                char tmp[64]; sprintf(tmp, "It is %s's turn.", game.players[game.turn].name);
+                SDLex_TextSetString(game.texts.who_is_playing, tmp);
+                    
                 printf("Game started !\n\n");
                 break;
 
             case (int)DistribCards:
                 printf("Received my cards : \n");
-                for (int i = 0; i < 3; ++i) {
-                    int card_id = ((int)buffer[1+i])-1;
-                    game.me->cards[i] = card_id;
+                memset(game.players_items_count[game.my_index], 0, sizeof(int)*8);
+                for (int c = 0; c < 3; ++c) {
+                    int card_id = ((int)buffer[1+c])-1;
+                    game.me->cards[c] = card_id;
                     game.selected.checkmarks[card_id] = 1;
-                    game.sprites.cards[i].texture = game.textures.cards[card_id];
+
+                    // get character items and fill player info
+                    for (int i = 0; i < 3; ++i) {
+                        int chara_item = game.data->character_items[card_id][i];
+                        if (chara_item != -1) {
+                            if (game.players_items_count[game.my_index][chara_item] < 0)
+                                game.players_items_count[game.my_index][chara_item] = 1;
+                            else
+                                game.players_items_count[game.my_index][chara_item]+= 1;
+                        }
+                    }
+
+                    game.sprites.cards[c].texture = game.textures.cards[card_id];
                     printf("    - %s\n", DATA.character_names[card_id]);
                 }
                 printf("\n");

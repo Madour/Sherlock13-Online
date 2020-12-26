@@ -34,14 +34,17 @@ all: $(OBJ_DIR) $(BIN_DIR) $(CLIENT_TGT) $(SERVER_TGT)
 	mv $(SERVER_TGT) $(BIN_DIR)
 	
 print:
-	@echo $(CLIENT_SRC) 
-	@echo $(CLIENT_INC)
-	@echo $(CLIENT_OBJ)
-	@echo "-----------"
+	@echo "Common files :"
 	@echo $(COMMON_SRC) 
 	@echo $(COMMON_INC)
 	@echo $(COMMON_OBJ)
 	@echo "-----------"
+	@echo "Client files : "
+	@echo $(CLIENT_SRC) 
+	@echo $(CLIENT_INC)
+	@echo $(CLIENT_OBJ)
+	@echo "-----------"
+	@echo "Server files : "
 	@echo $(SERVER_SRC) 
 	@echo $(SERVER_INC)
 	@echo $(SERVER_OBJ)

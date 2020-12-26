@@ -49,6 +49,10 @@ void Game_reset(Game* game) {
     memset(game->players, 0, sizeof(Player)*4);
     game->players_nb = 0;
 
+    for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 8; ++j)
+            game->players_items_count[i][j] = -2;
+
     game->me = NULL;
     game->my_index = 0;
 
@@ -109,16 +113,22 @@ void Game_initSprites(Game* game) {
 
 void Game_initTexts(Game* game) {
     SDL_Rect cell;
+    for (int i = 0; i < 10; ++i) {
+        char tmp[2] = {i+'0', '\0'};
+        game->texts.digits[i] = SDLex_CreateText(game->renderer, tmp, game->font);
+    }
+    game->texts.digits[10] = SDLex_CreateText(game->renderer, "?", game->font);
+    game->texts.digits[11] = SDLex_CreateText(game->renderer, "*", game->font);
+
     // create items number texts
     for (int i = 0; i < 8; ++i) {
         if (i < 4)
-            game->texts.items_nb[i] = SDLex_CreateText(game->renderer, "5", game->font);
+            game->texts.items_nb[i] = game->texts.digits[5];
         else if (i == 4)
-            game->texts.items_nb[i] = SDLex_CreateText(game->renderer, "4", game->font);
+            game->texts.items_nb[i] = game->texts.digits[4];
         else
-            game->texts.items_nb[i] = SDLex_CreateText(game->renderer, "3", game->font);
+            game->texts.items_nb[i] = game->texts.digits[3];
         cell = SDLex_GridGetCellRect(&game->grid1, i, 0);
-        SDLex_TextSetPosition(game->texts.items_nb[i], cell.x+49, cell.y+30);
     }
 
     // create character names texts
@@ -132,15 +142,12 @@ void Game_initTexts(Game* game) {
     game->texts.wait_players = SDLex_CreateText(game->renderer, "Waiting for 3 players...", game->font);
     SDLex_TextSetPosition(game->texts.wait_players, game->grid1.position.x+40, game->grid1.position.y+15);
 
+    game->texts.who_is_playing = SDLex_CreateText(game->renderer, "It is someone's turn.", game->font);
+    SDLex_TextSetPosition(game->texts.who_is_playing, game->grid1.position.x+40, game->grid1.position.y+15);
+
     for (int i = 0; i < 4; ++i) {
         game->texts.players_names[i] = NULL;
-        for (int j = 0; j < 8; ++j) {
-            SDL_Rect cell = SDLex_GridGetCellRect(&game->grid1, j, i+1);
-            game->texts.players_item_count[i][j] = SDLex_CreateText(game->renderer, "?", game->font);
-            SDLex_TextSetPosition(game->texts.players_item_count[i][j], cell.x+cell.w/2-5, cell.y+cell.h/2-10);
-        }
     }
-
 }
 
 void Game_update(Game* game) {
@@ -281,7 +288,8 @@ void Game_render(Game* game) {
         game->sprites.items[i].scale = (SDL_FPoint){0.4, 0.4};
         SDLex_RenderDrawSprite(renderer, &game->sprites.items[i]);
         game->sprites.items[i].scale = (SDL_FPoint){0.25, 0.25};
-        SDLex_RenderDrawText(renderer, game->texts.items_nb[i]);
+        cell = SDLex_GridGetCellRect(&game->grid1, i, 0);
+        SDLex_RenderDrawTextAt(renderer, game->texts.items_nb[i], cell.x+49, cell.y+30);
     }
 
     // draw characters names and items (grid2)
@@ -301,9 +309,13 @@ void Game_render(Game* game) {
         if (game->texts.players_names[i] != NULL) {
             SDLex_RenderDrawText(renderer, game->texts.players_names[i]);
         }
+
         // draw players items number
         for (int j = 0; j < 8; ++j) {
-            SDLex_RenderDrawText(renderer, game->texts.players_item_count[i][j]);
+            SDL_Rect cell = SDLex_GridGetCellRect(&game->grid1, j, i+1);
+            int digit = game->players_items_count[i][j];
+            if (digit < 0) digit += 12;
+            SDLex_RenderDrawTextAt(renderer, game->texts.digits[digit], cell.x+cell.w/2-5, cell.y+cell.h/2-10);
         }
     }
     
@@ -313,6 +325,9 @@ void Game_render(Game* game) {
     else if (!game->started) {
         if (game->texts.wait_players != NULL)
             SDLex_RenderDrawText(renderer, game->texts.wait_players);
+    }
+    else {
+        SDLex_RenderDrawText(renderer, game->texts.who_is_playing);
     }
 
     if (game->started) {
@@ -335,6 +350,9 @@ void Game_render(Game* game) {
 }
 
 void Game_terminate(Game* game) {
+    SDL_DestroyTexture(game->textures.btn_connect);
+    SDL_DestroyTexture(game->textures.btn_go);
+    
     for (int i = 0; i < 13; ++i) {
         SDL_DestroyTexture(game->textures.cards[i]);
         SDLex_DestroyText(game->texts.character_names[i]);
@@ -342,20 +360,17 @@ void Game_terminate(Game* game) {
 
     for (int i = 0 ; i<8; ++i) {
         SDL_DestroyTexture(game->textures.items[i]);
-        SDLex_DestroyText(game->texts.items_nb[i]);
     }
 
-    SDL_DestroyTexture(game->textures.btn_connect);
-    SDL_DestroyTexture(game->textures.btn_go);
+    for (int i = 0; i < 12; ++i) 
+        SDLex_DestroyText(game->texts.digits[i]);
 
     for (int i = 0; i < 4; ++i) {
         if (game->texts.players_names[i] != NULL)
             SDLex_DestroyText(game->texts.players_names[i]);
-        for (int j = 0; j < 8; ++j) {
-            SDLex_DestroyText(game->texts.players_item_count[i][j]);
-        }
     }
     SDLex_DestroyText(game->texts.wait_players);
+    SDLex_DestroyText(game->texts.who_is_playing);
 
     TTF_CloseFont(game->font);
 }
