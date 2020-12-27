@@ -121,13 +121,13 @@ void* manage_lobby_thread(void* lobby) {
                 if ( ((taken_cards>>card)&1) == 0 ) {
                     this_lobby->players[i]->cards[j] = card;
                     for (int item=0; item<3; ++item) {
-                        int chara_item = DATA.character_items[card][item];
+                        int chara_item = DATA.characters_items[card][item];
                         if (chara_item != -1)
                             this_lobby->players[i]->items_count[chara_item] += 1;
                     }
                     taken_cards |= 1 << card;
                     found = true;
-                    printf("           - %2d = %s\n", card, DATA.character_names[card]);
+                    printf("           - %2d = %s\n", card, DATA.characters_names[card]);
                 }
             } while(!found);
             buffer[1+j] = (char)(card+1);
@@ -140,7 +140,7 @@ void* manage_lobby_thread(void* lobby) {
         if ( ((taken_cards >> i)&1) == 0 )
             this_lobby->suspect = i;
 
-    printf("     > Lobby %d : Suspect is \"%s\" (%d)\n\n", this_lobby->index, DATA.character_names[this_lobby->suspect], this_lobby->suspect);
+    printf("     > Lobby %d : Suspect is \"%s\" (%d)\n\n", this_lobby->index, DATA.characters_names[this_lobby->suspect], this_lobby->suspect);
 
     bool close_lobby = false;
     bool first_msg = true;
@@ -273,11 +273,11 @@ void* manage_player_thread(void* player) {
             int it;
             Lobby_lock(this_lobby, this_player);
             switch (buffer[0]) {
-                case (int)AskPlayer:
+                case AskPlayer:
                     pl = (int)(buffer[2]-'0');
                     it = (int)(buffer[3]-'0');
-                    printf("     > Lobby %d : %s is asking %s for items %d\n\n",
-                            this_lobby->index, this_player->name, this_lobby->players[pl]->name, it);
+                    printf("     > Lobby %d : %s is asking %s how many \"%ss\" he has. Answer : %d\n\n",
+                            this_lobby->index, this_player->name, this_lobby->players[pl]->name, DATA.items_names[it], this_lobby->players[pl]->items_count[it]);
                     tmp[0] = (char)AnswerPlayer;
                     tmp[1] = pl+'0';
                     tmp[2] = it+'0';
@@ -285,9 +285,9 @@ void* manage_player_thread(void* player) {
                     tmp[4] = '\0';
                     MsgQueue_append(&this_lobby->queue, tmp, 5, -1);
                     break;
-                case (int)AskItem:
+                case AskItem:
                     break;
-                case (int)GuessSuspect:
+                case GuessSuspect:
                     break;
 
                 default:

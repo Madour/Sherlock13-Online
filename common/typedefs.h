@@ -24,8 +24,9 @@ typedef enum MsgCode {
 } MsgCode;
 
 struct GameData {
-    char* character_names[13];
-    int character_items[13][3];
+    char* characters_names[13];
+    int characters_items[13][3];
+    char* items_names[8];
 };
 
 extern const struct GameData DATA;

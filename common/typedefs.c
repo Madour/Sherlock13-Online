@@ -19,8 +19,6 @@ const struct GameData DATA = {
         "Mary Morstan",
         "James Moriarty"
     },
-    // items : 
-
     {
         {2, 7,-1},  // seb moran
         {5, 1, 7},  // iren adler
@@ -35,6 +33,16 @@ const struct GameData DATA = {
         {5, 0,-1},  // hudson
         {5, 4,-1},  // mary morstan
         {7, 1,-1},  // james moriarty
+    },
+    {
+        "Smoking pipe",
+        "Lightbulb",
+        "Fist",
+        "Crown",
+        "Book",
+        "Necklace",
+        "Eye",
+        "Skull"
     }
 };
 

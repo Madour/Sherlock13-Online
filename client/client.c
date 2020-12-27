@@ -95,7 +95,7 @@ void* receive_server_msgs_thread(void* args) {
         pthread_mutex_lock(&mutex);
         switch (buffer[0]) {
 
-            case (int)WaitingPlayers:
+            case WaitingPlayers:
                 game.players_nb = buffer[1]-'0';
                 sprintf(buffer, "Waiting for %d player%s...", 4-game.players_nb, game.players_nb >= 3 ? "":"s");
                 SDLex_TextSetString(game.texts.wait_players, buffer);
@@ -104,7 +104,7 @@ void* receive_server_msgs_thread(void* args) {
                     printf("     > Waiting for %d more player%s\n\n", 4-game.players_nb, game.players_nb>=3 ? "":"s");
                 break;
 
-            case (int)GameStart:
+            case GameStart:
                 current_i = 1;
                 game.started = true;
                 printf("     > Received player names : \n");
@@ -132,7 +132,7 @@ void* receive_server_msgs_thread(void* args) {
                 printf("\n     > Game started !\n\n");
                 break;
 
-            case (int)DistribCards:
+            case DistribCards:
                 printf("     > Received my cards : \n");
                 memset(game.players_items_count[game.my_index], 0, sizeof(int)*8);
                 for (int c = 0; c < 3; ++c) {
@@ -142,7 +142,7 @@ void* receive_server_msgs_thread(void* args) {
 
                     // get character items and fill player info
                     for (int i = 0; i < 3; ++i) {
-                        int chara_item = game.data->character_items[card_id][i];
+                        int chara_item = game.data->characters_items[card_id][i];
                         if (chara_item != -1) {
                             if (game.players_items_count[game.my_index][chara_item] < 0)
                                 game.players_items_count[game.my_index][chara_item] = 1;
@@ -152,25 +152,30 @@ void* receive_server_msgs_thread(void* args) {
                     }
 
                     game.sprites.cards[c].texture = game.textures.cards[card_id];
-                    printf("         - %s\n", DATA.character_names[card_id]);
+                    printf("         - %s\n", DATA.characters_names[card_id]);
                 }
                 printf("\n");
                 break;
 
-            case (int)PlayerTurn:
+            case PlayerTurn:
                 game.turn = buffer[1] - '0';
                 sprintf(tmp, "It is %s's turn.", game.players[game.turn].name);
                 SDLex_TextSetString(game.texts.who_is_playing, tmp);
                 printf("     > %s is playing.\n\n", game.players[game.turn].name);
                 break;
 
-            case (int)AnswerPlayer:
+            case AnswerPlayer:
                 pl = buffer[1] - '0';
                 it = buffer[2] - '0';
                 game.players_items_count[pl][it] = buffer[3] - '0';
+                printf("     > %s has a total of %d \"%s%s\"\n\n", game.players[pl].name, 
+                        game.players_items_count[pl][it], game.data->items_names[it], game.players_items_count[pl][it] > 1 ? "s":"");
                 break;
 
-            case (int)QuitLobby:
+            case AnswerItem:
+                break;
+
+            case QuitLobby:
                 Game_reset(&game);
                 for (int i = 0; i < 4; ++i) {
                     if (game.texts.players_names[i] != NULL)
@@ -206,8 +211,6 @@ int main(int argc, char* argv[]) {
     my_name = argv[3];
     int len = strlen(my_name);
     my_name[(len > 9 ? 9 : len)] = '\0';
-
-    printf("Player %s\n", my_name);
 
     struct addrinfo* server_ai;
     struct addrinfo hints = {
