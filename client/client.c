@@ -75,7 +75,7 @@ int recv_msg(int sfd, void* buffer, int size) {
 
 void* receive_server_msgs_thread(void* args) {
     char buffer[256];
-    char tmp[64];
+    char tmp[256];
     int pl, it;
     while(1) {
         if (!game.connected)
@@ -91,6 +91,7 @@ void* receive_server_msgs_thread(void* args) {
         }
         int current_i = 1;
         int name_len;
+        memset(tmp, 0, sizeof(tmp));
 
         pthread_mutex_lock(&mutex);
         switch (buffer[0]) {
@@ -170,6 +171,10 @@ void* receive_server_msgs_thread(void* args) {
                 game.players_items_count[pl][it] = buffer[3] - '0';
                 printf("     > %s has a total of %d \"%s%s\"\n\n", game.players[pl].name, 
                         game.players_items_count[pl][it], game.data->items_names[it], game.players_items_count[pl][it] > 1 ? "s":"");
+                sprintf(tmp, "%s has a total of %d \"%s%s\"", game.players[pl].name, 
+                        game.players_items_count[pl][it], game.data->items_names[it], game.players_items_count[pl][it] > 1 ? "s":"");
+                printf("<<< Action : %s >>>\n\n", tmp);
+                SDLex_TextSetString(game.texts.action_description, tmp);
                 break;
 
             case AnswerItem:
@@ -182,23 +187,44 @@ void* receive_server_msgs_thread(void* args) {
                             game.players_items_count[i][it] = 0;
                     }
                 }
+                memset(buffer, 0, sizeof(buffer));
+                sprintf(buffer, "Players who have \"%ss\" : ", game.data->items_names[it]);
+                strcpy(tmp, buffer);
                 printf("     > Who has \"%ss\" ? \n", game.data->items_names[it]);
                 for (int i = 0; i < 4; ++i) {
-                    if(game.players_items_count[i][it] > 0 || game.players_items_count[i][it] == -1)
-                        printf("        - %s\n", game.players[i].name);
+                    if (game.my_index != i) {
+                        if(game.players_items_count[i][it] > 0 || game.players_items_count[i][it] == -1) {
+                            strcat(tmp, game.players[i].name);
+                            strcat(tmp, ", ");
+                            printf("        - %s\n", game.players[i].name);
+                        }
+                    }
+                    
                 }
+                SDLex_TextSetString(game.texts.action_description, tmp);
+                printf("<<< Action : %s >>>\n\n", tmp);
                 break;
 
             case AnswerSuspect:
                 if (buffer[1] == '0') {
                     game.selected.checkmarks[(int)buffer[2]] = 1;
+                    sprintf(tmp, "%s made a wrong guess ! Suspect is not \"%s\".", game.players[game.turn].name, game.data->characters_names[(int)buffer[2]]);
+                    SDLex_TextSetString(game.texts.action_description, tmp);
                 }
                 else {
                     for (int i = 0; i < 13; ++i) {
                         game.selected.checkmarks[i] = 1;
                     }
                     game.selected.checkmarks[(int)buffer[2]] = -1;
+                    sprintf(tmp, "%s guessed the suspect ! It was \"%s\".", game.players[game.turn].name, game.data->characters_names[(int)buffer[2]]);
+                    SDLex_TextSetString(game.texts.action_description, tmp);
                 }
+                break;
+
+            case Victory:
+                game.ended = true;
+                sprintf(tmp, "%s won the game !", game.players[game.turn].name);
+                SDLex_TextSetString(game.texts.who_is_playing, tmp);
                 break;
 
             case QuitLobby:
@@ -324,7 +350,7 @@ int main(int argc, char* argv[]) {
             }
             else if (game.turn == game.my_index) {
                 SDL_Rect cell = SDLex_SpriteGetBounds(&game.sprites.btn_go);
-                if (SDL_PointInRect(&game.mouse_pos, &cell)) {
+                if (SDL_PointInRect(&game.mouse_pos, &cell) && game.started && !game.ended) {
                     if (game.selected.item != -1 || game.selected.player != -1 || game.selected.character != -1) {
                         if (game.selected.player > -1 && game.selected.item > -1) {
                             // send AskPlayer
@@ -365,9 +391,9 @@ int main(int argc, char* argv[]) {
         Game_render(&game);
         pthread_mutex_unlock(&mutex);
         
-        // limit FPS
+        // limit FPS to 15 (more than enough for this type of GUI game)
         float elapsed_s = (SDL_GetPerformanceCounter() - start_time) / (float)SDL_GetPerformanceFrequency();
-        SDL_Delay(fmax(0, 33.33 - elapsed_s*1000));
+        SDL_Delay(fmax(0, 66.66 - elapsed_s*1000));
         elapsed_s = (SDL_GetPerformanceCounter() - start_time) / (float)SDL_GetPerformanceFrequency();
         sprintf(window_title, "Sherlock 13 Online ! %s - FPS : %f - frame duration : %f ms", my_name, 1.0/elapsed_s, elapsed_s*1000);
         SDL_SetWindowTitle(window, window_title);

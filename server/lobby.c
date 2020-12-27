@@ -10,11 +10,12 @@
 
 void Lobby_reset(Lobby* lobby) {
     for (int p = 0; p < 4; ++p) {
-        if (lobby->players[p] != NULL)
-            free(lobby->players[p]);
+        /*if (lobby->players[p] != NULL)
+            free(lobby->players[p]);*/
         lobby->players[p] = NULL;
     }
 
+    lobby->game_ended = false;
     lobby->suspect = 0;
     lobby->turn = 0;
     lobby->penalities = 0;
@@ -194,7 +195,6 @@ void* manage_lobby_thread(void* lobby) {
     *this_lobby->lobby_states &= 0 << this_lobby->index ;
     MsgQueue_clear(msg_queue);
     pthread_exit(NULL);
-
 }
 
 void* manage_player_thread(void* player) {
@@ -310,10 +310,13 @@ void* manage_player_thread(void* player) {
                         tmp[0] = (char)AnswerSuspect;
                         tmp[1] = '1';
                         tmp[2] = buffer[2];
+                        tmp[3] = '\0';
                         MsgQueue_append(&this_lobby->queue, tmp, 4, -1);
                         tmp[0] = (char)Victory;
                         tmp[1] = buffer[1];
+                        tmp[2] = '\0';
                         MsgQueue_append(&this_lobby->queue, tmp, 3, -1);
+                        this_lobby->game_ended = true;
                     }
                     // wrong guess
                     else {
@@ -323,6 +326,7 @@ void* manage_player_thread(void* player) {
                         tmp[0] = (char)AnswerSuspect;
                         tmp[1] = '0';
                         tmp[2] = buffer[2];
+                        tmp[3] = '\0';
                         MsgQueue_append(&this_lobby->queue, tmp, 4, -1);
                     }
                     break;
@@ -330,19 +334,22 @@ void* manage_player_thread(void* player) {
                 default:
                     break;
             }
-            // next turn
-            this_lobby->turn = (this_lobby->turn+1)%4;
-            // skip players with penalities
-            while ( ((this_lobby->penalities >> this_lobby->turn)&1) == 1 ) {
-                this_lobby->penalities &= 0 << this_lobby->turn;
-                this_lobby->turn = (this_lobby->turn+1)%4;
-            }
-            tmp[0] = PlayerTurn;
-            tmp[1] = this_lobby->turn + '0';
-            tmp[2] = '\0';
-            MsgQueue_append(&this_lobby->queue, tmp, 3, -1);
-            pthread_cond_signal(&this_lobby->send_next);
 
+            if (!this_lobby->game_ended) {
+                // next turn
+                this_lobby->turn = (this_lobby->turn+1)%4;
+                // skip players with penalities
+                while ( ((this_lobby->penalities >> this_lobby->turn)&1) == 1 ) {
+                    this_lobby->penalities &= 0 << this_lobby->turn;
+                    this_lobby->turn = (this_lobby->turn+1)%4;
+                }
+                tmp[0] = PlayerTurn;
+                tmp[1] = this_lobby->turn + '0';
+                tmp[2] = '\0';
+                MsgQueue_append(&this_lobby->queue, tmp, 3, -1);
+            }
+
+            pthread_cond_signal(&this_lobby->send_next);
             Lobby_unlock(this_lobby, this_player);
         }
     }

@@ -61,6 +61,7 @@ typedef struct Game {
     int players_nb;
 
     bool started;
+    bool ended;
     int turn;
 
     // players info

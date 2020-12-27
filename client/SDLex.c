@@ -90,7 +90,7 @@ void SDLex_RenderDrawSpriteAt(SDL_Renderer* renderer, SDLex_Sprite* sprite, int 
 }
 
 SDLex_Text* SDLex_CreateText(SDL_Renderer* renderer, char* string, TTF_Font* font) {
-    SDL_Surface* text_surf = TTF_RenderText_Blended(font, string, (SDL_Color){0, 0, 0, 0});
+    SDL_Surface* text_surf = TTF_RenderText_Blended_Wrapped(font, string, (SDL_Color){0, 0, 0, 0}, 300);
     SDL_Texture* text_tex = SDL_CreateTextureFromSurface(renderer, text_surf);
     SDL_FreeSurface(text_surf);
     
@@ -109,13 +109,15 @@ void SDLex_TextSetPosition(SDLex_Text* text, int x, int y) {
 }
 
 void SDLex_TextSetString(SDLex_Text* text, char* string) {
-    SDL_Surface* text_surf = TTF_RenderText_Blended(text->font, string, (SDL_Color){0, 0, 0, 0});
+    SDL_Surface* text_surf = TTF_RenderText_Blended_Wrapped(text->font, string, (SDL_Color){0, 0, 0, 0}, 300);
     SDL_Texture* text_tex = SDL_CreateTextureFromSurface(text->renderer, text_surf);
     SDL_FreeSurface(text_surf);
 
     if (text->drawable.texture != NULL)
         SDL_DestroyTexture(text->drawable.texture);
     text->drawable.texture = text_tex;
+    text->drawable.texture_rect.w = 0;
+    text->drawable.texture_rect.h = 0;
 }
 
 void SDLex_RenderDrawText(SDL_Renderer* renderer, SDLex_Text* text) {
@@ -135,7 +137,7 @@ void SDLex_DestroyText(SDLex_Text* text) {
 
 SDL_Point SDLex_GridGetSize(SDLex_Grid* grid) {
     return (SDL_Point) {
-        grid->padding_topleft.x + grid->cell_size.x*grid->colomns_nb + grid->padding_bottomright.x,
+        grid->padding_topleft.x + grid->cell_size.x*grid->columns_nb + grid->padding_bottomright.x,
         grid->padding_topleft.y + grid->cell_size.y*grid->rows_nb + grid->padding_bottomright.y
     };
 }
@@ -154,7 +156,7 @@ void SDLex_RenderDrawGrid(SDL_Renderer* renderer, SDLex_Grid* g) {
     SDL_Point g_size = SDLex_GridGetSize(g);
     
     // vertical lines
-    int stop = g->padding_bottomright.x > 0 ? g->colomns_nb+1 : g->colomns_nb;
+    int stop = g->padding_bottomright.x > 0 ? g->columns_nb+1 : g->columns_nb;
     for (int i = 0; i < stop; ++i)
         SDL_RenderDrawLine(renderer, g->position.x + g->padding_topleft.x+g->cell_size.x*i, g->position.y, 
                                      g->position.x + g->padding_topleft.x+g->cell_size.x*i, g->position.y+g_size.y);
@@ -174,12 +176,12 @@ SDL_Rect SDLex_GridGetCellRect(SDLex_Grid* g, int cx, int cy) {
         x = g->position.x;
         w = g->padding_topleft.x;
     }
-    else if (cx < g->colomns_nb) {
+    else if (cx < g->columns_nb) {
         x = g->position.x + g->padding_topleft.x + cx*g->cell_size.x;
         w = g->cell_size.x;
     }
     else {
-        x = g->position.x + g->padding_topleft.x + g->colomns_nb*g->cell_size.x;
+        x = g->position.x + g->padding_topleft.x + g->columns_nb*g->cell_size.x;
         w = g->padding_bottomright.x;
     }
 
@@ -192,7 +194,7 @@ SDL_Rect SDLex_GridGetCellRect(SDLex_Grid* g, int cx, int cy) {
         h = g->cell_size.y;
     }
     else {
-        y = g->position.y + g->padding_topleft.y + g->colomns_nb*g->cell_size.y;
+        y = g->position.y + g->padding_topleft.y + g->columns_nb*g->cell_size.y;
         h = g->padding_bottomright.y;
     }
 

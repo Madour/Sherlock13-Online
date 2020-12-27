@@ -33,6 +33,7 @@ typedef struct Lobby {
     Player* players[4];
     int players_nb;
 
+    bool game_ended;
     int suspect;
     int turn;
     int penalities;

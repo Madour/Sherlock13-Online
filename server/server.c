@@ -44,7 +44,7 @@ void exit_server(int sig_no) {
 
 int main(int argc, char* argv[]) {
     srand(time(NULL));
-    debug = false;
+    debug = true;
     if (argc < 2) {
         printf("Commande usage : ./server <port_number> \n");
         return EXIT_SUCCESS;
@@ -128,6 +128,8 @@ int main(int argc, char* argv[]) {
         }
 
         Lobby* lobby = &lobbies_array[lobby_index];
+        if (lobby->players_nb == 0)
+            Lobby_reset(lobby);
 
         if (lobby->players_nb < 4) {
             
@@ -140,12 +142,14 @@ int main(int argc, char* argv[]) {
             strcpy(new_player->client.ip, inet_ntoa(client_addr.sin_addr));
             new_player->client.port = ntohs(client_addr.sin_port);
             new_player->client.ack = false;
+            
             // fill new player lobby info
             new_player->lobby = lobby;
             new_player->index = lobby->players_nb;
+            for (int i = 0; i < 8; ++i)
+                new_player->items_count[8] = 0;
             strcpy(new_player->name, "");
             new_player->leave = false;
-            
             
             // first message received from new client is player name
             char buffer[256];

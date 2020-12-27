@@ -57,6 +57,7 @@ void Game_reset(Game* game) {
     game->my_index = 0;
 
     game->started = false;
+    game->ended = false;
     game->turn = 0;
 
     memset(&game->selected, -1, sizeof(struct Selection));
@@ -150,7 +151,7 @@ void Game_initTexts(Game* game) {
     }
 
     game->texts.action_description = SDLex_CreateText(game->renderer, "", game->font);
-    SDLex_TextSetPosition(game->texts.action_description, 450, 320);
+    SDLex_TextSetPosition(game->texts.action_description, 410, 470);
 }
 
 void Game_update(Game* game) {
@@ -339,7 +340,7 @@ void Game_render(Game* game) {
             if (game->sprites.cards[i].texture)
                SDLex_RenderDrawSprite(renderer, &game->sprites.cards[i]);
         // draw go button when it is my turn to play
-        if (game->turn == game->my_index) {
+        if (!game->ended && game->turn == game->my_index) {
             SDLex_RenderDrawSprite(renderer, &game->sprites.btn_go);
         }
         // draw last action description
