@@ -1,6 +1,8 @@
 #ifndef TYPEDEFS_H
 #define TYPEDEFS_H
 
+#include <stdbool.h>
+
 typedef enum MsgCode {
     WaitingPlayers='W',
     GameStart='S',
@@ -27,5 +29,7 @@ struct GameData {
 };
 
 extern const struct GameData DATA;
+
+void deb_log(const char* format, ...);
 
 #endif//TYPEDEFS_H 

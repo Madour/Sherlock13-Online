@@ -26,19 +26,23 @@ void Lobby_reset(Lobby* lobby) {
 }
 
 void Lobby_lock(Lobby* lobby, Player* player) {
+    if (player != NULL)
+        deb_log("[LOCK] Lobby %d : Player %s waiting for Mutex lock\n", lobby->index, player->name);
+    else
+        deb_log("[LOCK] Lobby %d : Waiting for Mutex lock\n", lobby->index);
     pthread_mutex_lock(&lobby->mutex);
     lobby->locked = true;
-    printf("[LOCK] Lobby %d is locked by %s\n\n", lobby->index, player == NULL ? "lobby" : player->name);
+    deb_log("[LOCK] Lobby %d is locked by %s\n", lobby->index, player == NULL ? "lobby" : player->name);
 }
 
 void Lobby_unlock(Lobby* lobby, Player* player) {
-    printf("[LOCK] Lobby %d is unlocked by %s\n\n", lobby->index, player == NULL ? "lobby" : player->name);
+    deb_log("[LOCK] Lobby %d is unlocked by %s\n", lobby->index, player == NULL ? "lobby" : player->name);
     pthread_mutex_unlock(&lobby->mutex);
     lobby->locked = false;
 }
 
 void Lobby_broadcast(Lobby* lobby, char* msg, unsigned int size) {
-    printf("[INFO] Broadcasting message to %d players in lobby %d : \"%s\"\n\n", lobby->players_nb, lobby->index, msg);
+    deb_log("[INFO] Lobby %d : Broadcasting message to %d players : \"%s\"\n", lobby->index, lobby->players_nb, msg);
     for (int i = 0; i < lobby->players_nb; ++i) {
         if (lobby->players[i] != NULL)
             if (!lobby->players[i]->leave)
@@ -56,7 +60,7 @@ inline void Lobby_waitAcks(Lobby* lobby) {
                 sched_yield();
                 pthread_mutex_lock(&lobby->mutex);
                 if (acks[i] == false && lobby->players[i]->client.ack)  {
-                    printf("[BROAD] Player %d:%s acked\n\n", lobby->index, lobby->players[i]->name);
+                    deb_log("[BROAD] Player %d:%s acked\n", lobby->index, lobby->players[i]->name);
                     acks[i] = true;
                     acks_nb++;
                 }
@@ -66,10 +70,10 @@ inline void Lobby_waitAcks(Lobby* lobby) {
         if (acks_nb == lobby->players_nb)
             break;
         if (timeout == 1) {
-            printf("[BROAD] Warning : Ack timeout\n");
+            deb_log("[BROAD] Warning : Ack timeout\n");
             for (int i = 0; i < lobby->players_nb; ++i) {
                 if (lobby->players[i] != NULL &&  acks[i] == false)
-                    printf(">>>>>> Player %d:%s did not ack\n",lobby->index, lobby->players[i]->name);
+                    deb_log("[BROAD] Lobby %d: Player %s did not ack\n",lobby->index, lobby->players[i]->name);
             }
         }
     }
@@ -84,7 +88,7 @@ inline void Lobby_waitAcks(Lobby* lobby) {
 void* manage_lobby_thread(void* lobby) {
 
     Lobby* this_lobby = (Lobby*)lobby;
-    printf("[INFO] Started thread for lobby %d (%ld) \n\n", this_lobby->index, pthread_self());
+    deb_log("[INFO] Lobby %d : Started thread (%ld) \n", this_lobby->index, pthread_self());
 
     MsgQueue* msg_queue = &this_lobby->queue;
     MsgQueue_clear(msg_queue);
@@ -102,13 +106,13 @@ void* manage_lobby_thread(void* lobby) {
     }
     MsgQueue_append(msg_queue, buffer, current_i+1, -1);
 
-
+    printf("     > Lobby %d : Game started ! Distributing cards to players :\n\n", this_lobby->index);
     // filling players cards and adding the message to the queue
     memset(buffer, 0, sizeof(buffer));
     buffer[0] = (char)DistribCards;
     int taken_cards = 0;
     for (int i = 0; i < 4; ++i) {
-        printf("     > Player %d:%s cards : \n", this_lobby->index, this_lobby->players[i]->name);
+        printf("         > Player %d:%s cards : \n", this_lobby->index, this_lobby->players[i]->name);
         for (int j = 0; j < 3; ++j) {
             int card;
             bool found = false;
@@ -116,9 +120,14 @@ void* manage_lobby_thread(void* lobby) {
                 card = rand()%13;
                 if ( ((taken_cards>>card)&1) == 0 ) {
                     this_lobby->players[i]->cards[j] = card;
+                    for (int item=0; item<3; ++item) {
+                        int chara_item = DATA.character_items[card][item];
+                        if (chara_item != -1)
+                            this_lobby->players[i]->items_count[chara_item] += 1;
+                    }
                     taken_cards |= 1 << card;
                     found = true;
-                    printf("       - %2d = %s\n", card, DATA.character_names[card]);
+                    printf("           - %2d = %s\n", card, DATA.character_names[card]);
                 }
             } while(!found);
             buffer[1+j] = (char)(card+1);
@@ -131,7 +140,7 @@ void* manage_lobby_thread(void* lobby) {
         if ( ((taken_cards >> i)&1) == 0 )
             this_lobby->suspect = i;
 
-    printf("     > Lobby %d suspect is %s (%d)\n\n", this_lobby->index, DATA.character_names[this_lobby->suspect], this_lobby->suspect);
+    printf("     > Lobby %d : Suspect is \"%s\" (%d)\n\n", this_lobby->index, DATA.character_names[this_lobby->suspect], this_lobby->suspect);
 
     bool close_lobby = false;
     bool first_msg = true;
@@ -142,10 +151,9 @@ void* manage_lobby_thread(void* lobby) {
         if (close_lobby)
             break;
 
-        printf("[LOCK] Lobby %d waiting for Mutex lock\n\n", this_lobby->index);
         Lobby_lock(this_lobby, NULL);
         if (!first_msg) {
-            printf("[SIGN] Lobby %d waiting signal for sending. Lock released \n\n", this_lobby->index);
+            deb_log("[SIGN] Lobby %d waiting signal for sending. Lock released \n", this_lobby->index);
             pthread_cond_wait(&this_lobby->send_next, &this_lobby->mutex);
         }
         else
@@ -180,7 +188,7 @@ void* manage_lobby_thread(void* lobby) {
         Lobby_unlock(this_lobby, NULL);
     }
 
-    printf("[INFO] Closing thread for lobby %d (%ld) \n\n", this_lobby->index, pthread_self());
+    deb_log("[INFO] Lobby %d : Closing thread (%ld) \n", this_lobby->index, pthread_self());
     this_lobby->players_nb = 0;
     *this_lobby->lobby_states &= 0 << this_lobby->index ;
     MsgQueue_clear(msg_queue);
@@ -193,28 +201,29 @@ void* manage_player_thread(void* player) {
     Lobby* this_lobby = this_player->lobby;
     
     char buffer[256];
+    char tmp[64];
+    memset(tmp, 0, sizeof(tmp));
     int msg_size;
     
     while(1) {
         memset(buffer, 0, sizeof(buffer));
         if (this_player->leave) {
-            printf("[INFO] Player %s leaving lobby %d\n\n", this_player->name, this_lobby->index);
+            printf("     > Lobby %d : Player %s is leaving.\n\n", this_lobby->index, this_player->name);
             break;
         }
         msg_size = recv_msg(this_player, buffer, sizeof(buffer));
         
         if (msg_size <= 0) {
-            printf("[INFO] Failed to read from player %s:%u\n[INFO] Closing connection with player %s from lobby %d.\n\n", this_player->client.ip, this_player->client.port, this_player->name, this_lobby->index);
+            deb_log("[INFO] Failed to read from player %s:%u\n[INFO] Closing connection with player %s from lobby %d.\n", this_player->client.ip, this_player->client.port, this_player->name, this_lobby->index);
             if (this_lobby->players_nb == 0 || this_player->leave) {
-                printf("[INFO] Player %s leaving lobby %d\n\n", this_player->name, this_lobby->index);
+                printf("     > Lobby %d : Player %s is leaving.\n\n", this_lobby->index, this_player->name);
                 break;
             }
                 
-            printf("[LOCK] Player %s waiting for Mutex lock\n\n", this_player->name);
             Lobby_lock(this_lobby, this_player);
 
             if (this_player->leave) {
-                printf("[INFO] Player %s leaving lobby %d\n\n", this_player->name, this_lobby->index);
+                printf("     > Lobby %d : Player %s is leaving.\n\n", this_lobby->index, this_player->name);
                 Lobby_unlock(this_lobby, this_player);
                 break;
             }
@@ -224,7 +233,7 @@ void* manage_player_thread(void* player) {
             }
             // game not started yet, tell other players in lobby that this_player has quit
             else if (1 < this_lobby->players_nb && this_lobby->players_nb < 4) {
-                printf(">>>>>> Player %s has quit, %d players remaning in lobby %d\n\n", this_player->name, this_lobby->players_nb, this_lobby->index);
+                printf("     > Lobby %d : Player %s has quit, %d players remaning in lobby %d\n\n", this_lobby->index, this_player->name, this_lobby->players_nb, this_lobby->index);
                 // rearange players index
                 for (int i = this_player->index; i < 2; ++i) {
                     this_lobby->players[i] = this_lobby->players[i+1];
@@ -235,20 +244,20 @@ void* manage_player_thread(void* player) {
                     this_lobby->players[i] = NULL;
                 }
                 
-                buffer[0] = WaitingPlayers;
-                buffer[1] = this_lobby->players_nb+'0';
-                buffer[2] = '\0';
-                Lobby_broadcast(this_lobby, buffer, 3);
+                tmp[0] = (char)WaitingPlayers;
+                tmp[1] = this_lobby->players_nb+'0';
+                tmp[2] = '\0';
+                Lobby_broadcast(this_lobby, tmp, 3);
                 Lobby_waitAcks(this_lobby);
             }
             // if game already started, just make everyone quit
             else if (this_lobby->players_nb == 4) {
-                printf(">>>>>> Player %s from lobby %d quitted game !\n\n", this_player->name, this_lobby->index);
+                printf("     > Lobby %d : Player %s quitted game !\n\n", this_lobby->index, this_player->name);
                 // create Quit message
-                buffer[0] = (char)QuitLobby;
-                buffer[1] = '\0';
+                tmp[0] = (char)QuitLobby;
+                tmp[1] = '\0';
                 this_player->leave = true;
-                MsgQueue_append(&this_lobby->queue, buffer, 2, -1);
+                MsgQueue_append(&this_lobby->queue, tmp, 2, -1);
                 // send "send next" signal to lobby
                 pthread_cond_signal(&this_lobby->send_next);
             }
@@ -260,24 +269,36 @@ void* manage_player_thread(void* player) {
             this_player->client.ack = (strcmp(buffer, "ack") == 0);
         }
         else {
+            int pl;
+            int it;
             Lobby_lock(this_lobby, this_player);
             switch (buffer[0]) {
-            case (int)AskItem:
-                break;
-            case (int)AskPlayer:
-                break;
-            case (int)GuessSuspect:
-                break;
-            
-            default:
-                break;
+                case (int)AskPlayer:
+                    pl = (int)(buffer[2]-'0');
+                    it = (int)(buffer[3]-'0');
+                    printf("     > Lobby %d : %s is asking %s for items %d\n\n",
+                            this_lobby->index, this_player->name, this_lobby->players[pl]->name, it);
+                    tmp[0] = (char)AnswerPlayer;
+                    tmp[1] = pl+'0';
+                    tmp[2] = it+'0';
+                    tmp[3] = this_lobby->players[pl]->items_count[it]+'0';
+                    tmp[4] = '\0';
+                    MsgQueue_append(&this_lobby->queue, tmp, 5, -1);
+                    break;
+                case (int)AskItem:
+                    break;
+                case (int)GuessSuspect:
+                    break;
+
+                default:
+                    break;
             }
             this_lobby->turn += 1;
             this_lobby->turn %= 4;
-            buffer[0] = PlayerTurn;
-            buffer[1] = this_lobby->turn + '0';
-            buffer[2] = '\0';
-            MsgQueue_append(&this_lobby->queue, buffer, 3, -1);
+            tmp[0] = PlayerTurn;
+            tmp[1] = this_lobby->turn + '0';
+            tmp[2] = '\0';
+            MsgQueue_append(&this_lobby->queue, tmp, 3, -1);
             pthread_cond_signal(&this_lobby->send_next);
 
             Lobby_unlock(this_lobby, this_player);
@@ -285,7 +306,7 @@ void* manage_player_thread(void* player) {
     }
     close(this_player->client.sfd);
     if (this_player != NULL) {
-        printf("[INFO] Player %d:%s closing thread and freeing %ld bytes\n\n", this_lobby->index, this_player->name, sizeof(Player));
+        deb_log("[INFO] Player %d:%s closing thread and freeing %ld bytes\n", this_lobby->index, this_player->name, sizeof(Player));
         free(this_player);
     }
     pthread_exit(NULL);
@@ -295,7 +316,7 @@ int send_msg(Player* player, void* buffer, int size) {
     int r = write(player->client.sfd, buffer, size);
     char* data = (char*)buffer;
     if (r < 0) {
-        printf("[INFO] Failed to send message to %s (lobby %d): \"%s\"\n\n", player->name, player->lobby->index, data);
+        deb_log("[INFO] Failed to send message to %s (lobby %d): \"%s\"\n", player->name, player->lobby->index, data);
     }
     else {
         char temp[256];
@@ -308,7 +329,7 @@ int send_msg(Player* player, void* buffer, int size) {
         }
         sprintf(temp, "(%d bytes)", r);
         strcat(string, temp);
-        printf("%s\n\n", string);
+        deb_log("%s\n", string);
     }
     return r;
 }
@@ -317,7 +338,7 @@ int recv_msg(Player* player, void* buffer, int size) {
     int r = read(player->client.sfd, buffer, size);
     char* data = (char*)buffer;
     if (r < 0)
-        printf("[INFO] Failed to receive message from %s [%s:%d]\n\n", player->name, player->client.ip, player->client.port);
+        deb_log("[INFO] Failed to receive message from %s [%s:%d]\n", player->name, player->client.ip, player->client.port);
     else {
         char temp[256];
         char string[256] = "";
@@ -329,7 +350,7 @@ int recv_msg(Player* player, void* buffer, int size) {
         }
         sprintf(temp, "(%d bytes)", r);
         strcat(string, temp);
-        printf("%s\n\n", string);
+        deb_log("%s\n", string);
     }
     return r;
 }

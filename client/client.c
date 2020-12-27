@@ -34,7 +34,7 @@ int send_msg(int sfd, void* buffer, int size) {
     int r = write(sfd, buffer, size);
     char* data = (char*)buffer;
     if (r < 0) {
-        printf("[INFO] Failed to send message : \"%s\"\n\n", data);
+        deb_log("[INFO] Failed to send message : \"%s\"\n", data);
     }
     else {
         char temp[256];
@@ -47,7 +47,7 @@ int send_msg(int sfd, void* buffer, int size) {
         }
         sprintf(temp, "(%d bytes)", r);
         strcat(string, temp);
-        printf("%s\n\n", string);
+        deb_log("%s\n", string);
     }
     return r;
 }
@@ -56,7 +56,7 @@ int recv_msg(int sfd, void* buffer, int size) {
     int r = read(sfd, buffer, size);
     char* data = (char*)buffer;
     if (r < 0)
-        printf("[INFO] Failed to receive message from %s:%s\n\n", host_name, port);
+        deb_log("[INFO] Failed to receive message from %s:%s\n", host_name, port);
     else {
         char temp[256];
         char string[256] = "";
@@ -68,7 +68,7 @@ int recv_msg(int sfd, void* buffer, int size) {
         }
         sprintf(temp, "(%d bytes)", r);
         strcat(string, temp);
-        printf("%s\n\n", string);
+        deb_log("%s\n", string);
     }
     return r;
 }
@@ -76,6 +76,7 @@ int recv_msg(int sfd, void* buffer, int size) {
 void* receive_server_msgs_thread(void* args) {
     char buffer[256];
     char tmp[64];
+    int pl, it;
     while(1) {
         if (!game.connected)
             break;
@@ -100,13 +101,13 @@ void* receive_server_msgs_thread(void* args) {
                 SDLex_TextSetString(game.texts.wait_players, buffer);
             
                 if (game.players_nb < 4)
-                    printf("Waiting for %d more player%s\n\n", 4-game.players_nb, game.players_nb>=3 ? "":"s");
+                    printf("     > Waiting for %d more player%s\n\n", 4-game.players_nb, game.players_nb>=3 ? "":"s");
                 break;
 
             case (int)GameStart:
                 current_i = 1;
                 game.started = true;
-                printf("Received player names : \n");
+                printf("     > Received player names : \n");
                 // fill players name infos
                 for (int i = 0; i < 4; ++i) {
                     // get name length
@@ -123,16 +124,16 @@ void* receive_server_msgs_thread(void* args) {
                     SDL_Point pos = {game.grid1.position.x+20 , game.grid1.position.y+15+(game.grid1.cell_size.y)*(i+1)};
                     SDLex_TextSetPosition(game.texts.players_names[i], pos.x, pos.y);
                     current_i += name_len+1;
-                    printf("   - %s\n", game.players[i].name);
+                    printf("         - %s\n", game.players[i].name);
                 }
                 sprintf(tmp, "It is %s's turn.", game.players[game.turn].name);
                 SDLex_TextSetString(game.texts.who_is_playing, tmp);
                     
-                printf("Game started !\n\n");
+                printf("\n     > Game started !\n\n");
                 break;
 
             case (int)DistribCards:
-                printf("Received my cards : \n");
+                printf("     > Received my cards : \n");
                 memset(game.players_items_count[game.my_index], 0, sizeof(int)*8);
                 for (int c = 0; c < 3; ++c) {
                     int card_id = ((int)buffer[1+c])-1;
@@ -151,7 +152,7 @@ void* receive_server_msgs_thread(void* args) {
                     }
 
                     game.sprites.cards[c].texture = game.textures.cards[card_id];
-                    printf("    - %s\n", DATA.character_names[card_id]);
+                    printf("         - %s\n", DATA.character_names[card_id]);
                 }
                 printf("\n");
                 break;
@@ -161,6 +162,12 @@ void* receive_server_msgs_thread(void* args) {
                 sprintf(tmp, "It is %s's turn.", game.players[game.turn].name);
                 SDLex_TextSetString(game.texts.who_is_playing, tmp);
                 printf("     > %s is playing.\n\n", game.players[game.turn].name);
+                break;
+
+            case (int)AnswerPlayer:
+                pl = buffer[1] - '0';
+                it = buffer[2] - '0';
+                game.players_items_count[pl][it] = buffer[3] - '0';
                 break;
 
             case (int)QuitLobby:
@@ -318,6 +325,8 @@ int main(int argc, char* argv[]) {
                             buffer[3] = '\0';
                             send_msg(socket_fd, buffer, 4);
                         }
+                        // reset selections
+                        game.selected.character = game.selected.item = game.selected.player = -1;
                     }
                 }
 

@@ -22,6 +22,7 @@ typedef struct Player {
     int index;
     char name[32];
     int cards[3];
+    int items_count[8];
 
     bool leave;
     struct Lobby* lobby;

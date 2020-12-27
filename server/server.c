@@ -24,7 +24,7 @@
 
 Lobby lobbies_array[MAX_LOBBIES];
 int lobbies_states=0; // bit i set to 1 = lobby i is full, maximum of 32 lobbies
-
+extern bool debug;
 int server_sfd = -1;
 struct addrinfo* server_ai;
 
@@ -43,6 +43,7 @@ void exit_server(int sig_no) {
 
 
 int main(int argc, char* argv[]) {
+    debug = true;
     if (argc < 2) {
         printf("Commande usage : ./server <port_number> \n");
         return EXIT_SUCCESS;
@@ -105,7 +106,7 @@ int main(int argc, char* argv[]) {
             fprintf(stderr, "[ERROR] Server accept failed.\n");
             return EXIT_FAILURE;
         }
-        printf("[INFO] Accepting a connection from %s:%d\n\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+        deb_log("[INFO] Accepting a connection from %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
         // search for an available lobby
         int lobby_index=0;
@@ -159,11 +160,11 @@ int main(int argc, char* argv[]) {
             pthread_t player_thread;
             pthread_create(&player_thread, NULL, manage_player_thread, new_player);
             pthread_detach(player_thread);
-            printf("[INFO] Started thread for player \"%s\" (%ld) \n\n", new_player->name, player_thread);
+            deb_log("[INFO] Started thread for player \"%s\" (%ld) \n", new_player->name, player_thread);
 
             lobby->players_nb++;
 
-            printf("[INFO] Number of players connected to lobby %d : %d\n\n", lobby_index, lobby->players_nb);
+            deb_log("[INFO] Number of players connected to lobby %d : %d\n", lobby_index, lobby->players_nb);
 
             buffer[0] = (char)WaitingPlayers;
             buffer[1] = (char)lobby->players_nb+'0';

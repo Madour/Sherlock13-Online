@@ -1,5 +1,7 @@
+#include <stdio.h>
+#include <stdarg.h>
+#include <string.h>
 #include "common/typedefs.h"
-
 
 const struct GameData DATA = {
     {
@@ -35,3 +37,17 @@ const struct GameData DATA = {
         {7, 1,-1},  // james moriarty
     }
 };
+
+bool debug = true;
+
+void deb_log(const char* format, ...) {
+    if (debug) {
+        char tmp[256];
+        strcpy(tmp, format);
+        strcat(tmp, "\n");
+        va_list args;
+        va_start(args, tmp);
+        vprintf(tmp, args);
+        va_end(args);
+    }
+}
