@@ -133,7 +133,7 @@ void Game_initTexts(Game* game) {
 
     // create character names texts
     for (int i = 0; i < 13; ++i) {
-        char* name = game->data->character_names[i];
+        char* name = game->data->characters_names[i];
         game->texts.character_names[i] = SDLex_CreateText(game->renderer, name, game->font);
         cell = SDLex_GridGetCellRect(&game->grid2, 0, i);
         SDLex_TextSetPosition(game->texts.character_names[i], cell.x+12, cell.y+10);
@@ -148,6 +148,9 @@ void Game_initTexts(Game* game) {
     for (int i = 0; i < 4; ++i) {
         game->texts.players_names[i] = NULL;
     }
+
+    game->texts.action_description = SDLex_CreateText(game->renderer, "", game->font);
+    SDLex_TextSetPosition(game->texts.action_description, 450, 320);
 }
 
 void Game_update(Game* game) {
@@ -294,7 +297,7 @@ void Game_render(Game* game) {
     for (int i = 0; i < 13; ++i) {
         SDLex_RenderDrawText(renderer, game->texts.character_names[i]);
         for (int j = 0; j < 3; ++j) {
-            int item = game->data->character_items[i][j];
+            int item = game->data->characters_items[i][j];
             if (item != -1) {
                 cell = SDLex_GridGetCellRect(&game->grid2, 0, i);
                 SDLex_RenderDrawSpriteAt(renderer, &game->sprites.items[item], cell.x-34*(j+1), cell.y+3);
@@ -339,6 +342,8 @@ void Game_render(Game* game) {
         if (game->turn == game->my_index) {
             SDLex_RenderDrawSprite(renderer, &game->sprites.btn_go);
         }
+        // draw last action description
+        SDLex_RenderDrawText(renderer, game->texts.action_description);
     }
 
     // draw grids
@@ -371,6 +376,7 @@ void Game_terminate(Game* game) {
     }
     SDLex_DestroyText(game->texts.wait_players);
     SDLex_DestroyText(game->texts.who_is_playing);
+    SDLex_DestroyText(game->texts.action_description);
 
     TTF_CloseFont(game->font);
 }

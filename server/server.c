@@ -44,7 +44,7 @@ void exit_server(int sig_no) {
 
 int main(int argc, char* argv[]) {
     srand(time(NULL));
-    debug = true;
+    debug = false;
     if (argc < 2) {
         printf("Commande usage : ./server <port_number> \n");
         return EXIT_SUCCESS;

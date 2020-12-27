@@ -17,6 +17,7 @@ void Lobby_reset(Lobby* lobby) {
 
     lobby->suspect = 0;
     lobby->turn = 0;
+    lobby->penalities = 0;
 
     MsgQueue_init(&lobby->queue);
     pthread_cond_init(&lobby->send_next, NULL);
@@ -285,16 +286,57 @@ void* manage_player_thread(void* player) {
                     tmp[4] = '\0';
                     MsgQueue_append(&this_lobby->queue, tmp, 5, -1);
                     break;
+
                 case AskItem:
+                    it = (int)(buffer[2] - '0');
+                    printf("     > Lobby %d : %s is aking who has \"%s\" items\n\n", this_lobby->index, this_player->name, DATA.items_names[it]);
+                    tmp[0] = (char)AnswerItem;
+                    tmp[1] = it+'0';
+                    for (int i = 0; i < 4; ++i) {
+                        if (i == this_player->index)
+                            tmp[2+i] = '?';
+                        else
+                            tmp[2+i] = this_lobby->players[i]->items_count[it] > 0 ? '*' : '0';
+                    }
+                    tmp[6] = '\0';
+                    MsgQueue_append(&this_lobby->queue, tmp, 7, -1);
                     break;
+
                 case GuessSuspect:
+                    // right guess
+                    if ((int)buffer[2] == this_lobby->suspect) {
+                        printf("     > Lobby %d : %s guessed the suspect ! It was \"%s\" (%d)\n\n",
+                                this_lobby->index, this_player->name, DATA.characters_names[(int)buffer[2]], buffer[2]);
+                        tmp[0] = (char)AnswerSuspect;
+                        tmp[1] = '1';
+                        tmp[2] = buffer[2];
+                        MsgQueue_append(&this_lobby->queue, tmp, 4, -1);
+                        tmp[0] = (char)Victory;
+                        tmp[1] = buffer[1];
+                        MsgQueue_append(&this_lobby->queue, tmp, 3, -1);
+                    }
+                    // wrong guess
+                    else {
+                        printf("     > Lobby %d : %s made a wrong guess ! Suspect is not \"%s\" (%d)\n\n",
+                                this_lobby->index, this_player->name, DATA.characters_names[(int)buffer[2]], buffer[2]);
+                        this_lobby->penalities |= 1 << this_player->index;
+                        tmp[0] = (char)AnswerSuspect;
+                        tmp[1] = '0';
+                        tmp[2] = buffer[2];
+                        MsgQueue_append(&this_lobby->queue, tmp, 4, -1);
+                    }
                     break;
 
                 default:
                     break;
             }
-            this_lobby->turn += 1;
-            this_lobby->turn %= 4;
+            // next turn
+            this_lobby->turn = (this_lobby->turn+1)%4;
+            // skip players with penalities
+            while ( ((this_lobby->penalities >> this_lobby->turn)&1) == 1 ) {
+                this_lobby->penalities &= 0 << this_lobby->turn;
+                this_lobby->turn = (this_lobby->turn+1)%4;
+            }
             tmp[0] = PlayerTurn;
             tmp[1] = this_lobby->turn + '0';
             tmp[2] = '\0';

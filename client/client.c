@@ -173,6 +173,32 @@ void* receive_server_msgs_thread(void* args) {
                 break;
 
             case AnswerItem:
+                it = buffer[1] - '0';
+                for (int i = 0; i < 4; ++i) {
+                    if (game.players_items_count[i][it] < 0) {
+                        if (buffer[2+i] == '*')
+                            game.players_items_count[i][it] = -1;
+                        else if (buffer[2+i] == '0')
+                            game.players_items_count[i][it] = 0;
+                    }
+                }
+                printf("     > Who has \"%ss\" ? \n", game.data->items_names[it]);
+                for (int i = 0; i < 4; ++i) {
+                    if(game.players_items_count[i][it] > 0 || game.players_items_count[i][it] == -1)
+                        printf("        - %s\n", game.players[i].name);
+                }
+                break;
+
+            case AnswerSuspect:
+                if (buffer[1] == '0') {
+                    game.selected.checkmarks[(int)buffer[2]] = 1;
+                }
+                else {
+                    for (int i = 0; i < 13; ++i) {
+                        game.selected.checkmarks[i] = 1;
+                    }
+                    game.selected.checkmarks[(int)buffer[2]] = -1;
+                }
                 break;
 
             case QuitLobby:

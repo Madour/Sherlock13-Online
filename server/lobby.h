@@ -35,6 +35,7 @@ typedef struct Lobby {
 
     int suspect;
     int turn;
+    int penalities;
 
     MsgQueue queue;
     pthread_cond_t send_next;

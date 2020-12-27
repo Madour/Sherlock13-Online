@@ -40,12 +40,13 @@ struct GameSprites {
 };
 
 struct GameTexts {
-    SDLex_Text* digits[12]; // 0 to 9 and * and 1,
+    SDLex_Text* digits[12];         // 0 to 9 and * and 1,
     SDLex_Text* wait_players;
     SDLex_Text* who_is_playing;
-    SDLex_Text* items_nb[8];
+    SDLex_Text* items_nb[8];        // pointers to digits texts
     SDLex_Text* players_names[4];
     SDLex_Text* character_names[13];
+    SDLex_Text* action_description;
 };
 
 
