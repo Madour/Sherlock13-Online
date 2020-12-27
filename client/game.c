@@ -20,13 +20,13 @@ void Game_init(Game* game, SDL_Renderer* renderer) {
     game->grid1.cell_size = (SDL_Point){60, 50};
     game->grid1.padding_topleft = (SDL_Point){240, 0};
     game->grid1.padding_bottomright = (SDL_Point){0, 0};
-    game->grid1.colomns_nb = 8; game->grid1.rows_nb = 5;
+    game->grid1.columns_nb = 8; game->grid1.rows_nb = 5;
 
     game->grid2.position = (SDL_Point){10, 270};
     game->grid2.cell_size = (SDL_Point){200, 37};
     game->grid2.padding_topleft = (SDL_Point){37*3, 0};
     game->grid2.padding_bottomright = (SDL_Point){40, 0};
-    game->grid2.colomns_nb = 1; game->grid2.rows_nb = 13;
+    game->grid2.columns_nb = 1; game->grid2.rows_nb = 13;
 
     // load textures
     Game_initTextures(game);
@@ -165,7 +165,7 @@ void Game_update(Game* game) {
     game->hovered.checkmark = -1;
 
     // check if hovering/selecting an item cell
-    for (int i = 0; i < game->grid1.colomns_nb; ++i) {
+    for (int i = 0; i < game->grid1.columns_nb; ++i) {
         cell = SDLex_GridGetCellRect(&game->grid1, i, 0);
         if (SDL_PointInRect(&game->mouse_pos, &cell)) {
             game->hovered.item = i;

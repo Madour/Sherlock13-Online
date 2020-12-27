@@ -106,7 +106,7 @@ void SDLex_DestroyText(SDLex_Text* text);
 typedef struct SDLex_Grid {
     SDL_Point position;
     SDL_Point cell_size;
-    int colomns_nb;
+    int columns_nb;
     int rows_nb;
     SDL_Point padding_topleft;
     SDL_Point padding_bottomright;
