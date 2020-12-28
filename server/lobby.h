@@ -7,6 +7,11 @@
 
 #define MAX_LOBBIES (sizeof(int)*8)
 
+enum LobbyState {
+    LobbyStateWaiting,
+    LobbyStateGameStarted,
+    LobbyStateGameEnded
+};
 
 typedef struct Client {
     int sfd;
@@ -36,7 +41,8 @@ typedef struct Lobby {
     int suspect;
     int turn;
     int penalities;
-    bool game_ended;
+    enum LobbyState state;
+    bool available;
     bool quit;
 
     MsgQueue queue;

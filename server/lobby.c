@@ -16,7 +16,8 @@ void Lobby_reset(Lobby* lobby) {
     lobby->suspect = 0;
     lobby->turn = 0;
     lobby->penalities = 0;
-    lobby->game_ended = false;
+    lobby->state = LobbyStateWaiting;
+    lobby->available = true;
     lobby->quit = false;
 
     MsgQueue_init(&lobby->queue);
@@ -27,6 +28,9 @@ void Lobby_reset(Lobby* lobby) {
 }
 
 void Lobby_startGame(Lobby* lobby) {
+    lobby->available = false;
+    lobby->state = LobbyStateGameStarted;
+
     MsgQueue_clear(&lobby->queue);
     
     // broadcast GameStart message to lobby
@@ -133,7 +137,6 @@ inline void Lobby_waitAcks(Lobby* lobby) {
                     acks_nb++;
                 }
             }
-            
         }
         if (acks_nb == lobby->players_nb)
             break;
@@ -185,6 +188,11 @@ void* manage_lobby_thread(void* lobby) {
                 Player* player = this_lobby->players[msg->dest];
                 send_msg(player, msg->msg, msg->size);
             }
+            if (msg->msg[0] == (char)QuitLobby && msg_queue->size == 1) {
+                this_lobby->state = LobbyStateWaiting;
+                this_lobby->available = true;
+                this_lobby->players_nb = 0;
+            }
             MsgQueue_pop(msg_queue);
         }
     
@@ -193,7 +201,6 @@ void* manage_lobby_thread(void* lobby) {
 
     deb_log("[INFO] Lobby %d : Closing thread (%ld) \n", this_lobby->index, pthread_self());
     this_lobby->players_nb = 0;
-    this_lobby->game_ended = false;
     MsgQueue_clear(msg_queue);
     pthread_exit(NULL);
 }
@@ -228,23 +235,10 @@ void* manage_player_thread(void* player) {
                 Lobby_unlock(this_lobby, this_player);
                 break;
             }
-            if (!this_lobby->game_ended) {
+            if (this_lobby->state == LobbyStateWaiting) {
                 // player was the only on in lobby
                 if (this_lobby->players_nb == 1) {
                     this_lobby->players_nb--;
-                }
-                // a player quit while in game
-                else if (this_lobby->players_nb == 4) {
-                    printf("     > Lobby %d : Player %s quitted game !\n\n", this_lobby->index, this_player->name);
-                    // create Quit message
-                    tmp[0] = (char)QuitLobby;
-                    tmp[1] = '\0';
-                    // send it to the other players in lobby
-                    for (int i = 0; i < 4; ++i) {
-                        this_lobby->players[i]->leave = true;
-                        if (i != this_player->index)
-                            MsgQueue_append(&this_lobby->queue, tmp, 2, i);
-                    }
                 }
                 else {
                     printf("     > Lobby %d : Player %s has quit, %d players remaning in lobby %d\n\n",
@@ -252,7 +246,6 @@ void* manage_player_thread(void* player) {
                     // rearange players index
                     for (int i = this_player->index; i < 2; ++i) {
                         this_lobby->players[i] = this_lobby->players[i+1];
-                        this_lobby->players[i+1] = this_player;
                         if (this_lobby->players[i])
                             this_lobby->players[i]->index--;
                         this_player->index++;
@@ -267,15 +260,27 @@ void* manage_player_thread(void* player) {
                     tmp[2] = '\0';
                     MsgQueue_append(&this_lobby->queue, tmp, 3, -1);
                 }
-                Lobby_sendMsgs(this_lobby, this_player);
             }
-            else if (this_lobby->game_ended) {
-                this_lobby->players_nb--;
-                if (this_lobby->players_nb == 0) {
-                    this_lobby->game_ended = false;
+            else if (this_lobby->state == LobbyStateGameStarted) {
+                printf("     > Lobby %d : Player %s quitted game !\n\n", this_lobby->index, this_player->name);
+                // create Quit message
+                tmp[0] = (char)QuitLobby;
+                tmp[1] = '\0';
+                // send it to the other players in lobby
+                for (int i = 0; i < 4; ++i) {
+                    this_lobby->players[i]->leave = true;
+                    if (i != this_player->index)
+                        MsgQueue_append(&this_lobby->queue, tmp, 2, i);
                 }
             }
-            
+            else if (this_lobby->state == LobbyStateGameEnded) {
+                this_lobby->players_nb--;
+                if (this_lobby->players_nb == 0) {
+                    this_lobby->available = true;
+                    this_lobby->state = LobbyStateWaiting;
+                }
+            }
+            Lobby_sendMsgs(this_lobby, this_player);
             this_lobby->players[this_player->index] = NULL;
             Lobby_unlock(this_lobby, this_player);
             break;
@@ -330,7 +335,7 @@ void* manage_player_thread(void* player) {
                         tmp[1] = buffer[1];
                         tmp[2] = '\0';
                         MsgQueue_append(&this_lobby->queue, tmp, 3, -1);
-                        this_lobby->game_ended = true;
+                        this_lobby->state = LobbyStateGameEnded;
                     }
                     // wrong guess
                     else {
@@ -349,7 +354,7 @@ void* manage_player_thread(void* player) {
                     break;
             }
 
-            if (!this_lobby->game_ended) {
+            if (this_lobby->state == LobbyStateGameStarted) {
                 // next turn
                 this_lobby->turn = (this_lobby->turn+1)%4;
                 // skip players with penalities

@@ -142,7 +142,7 @@ int main(int argc, char* argv[]) {
         deb_log("[INFO] Server : Searching for an available lobby");
         for (int i = 0; i < MAX_LOBBIES; ++i) {
             pthread_mutex_lock(&lobbies_array[i].mutex);
-            if (lobbies_array[i].players_nb != 4 && !lobbies_array[i].game_ended) {
+            if (lobbies_array[i].available) {
                 if (lobbies_array[i].players_nb > max_players_nb) {
                     deb_log("       Found Lobby %d with %d players\n", i, lobbies_array[i].players_nb);
                     lobby_index = i;
