@@ -14,12 +14,13 @@ typedef enum MsgCode {
     AnswerItem='J',
 
     AskPlayer='P',
-    AnswerPlayer='R',
+    AnswerPlayer='O',
 
     GuessSuspect='G',
     AnswerSuspect='H',
 
     Victory='V',
+    Replay='R',
     QuitLobby='Q',
 } MsgCode;
 

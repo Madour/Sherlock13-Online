@@ -231,59 +231,61 @@ void Game_render(Game* game) {
     SDL_SetRenderDrawColor(renderer, 220, 220, 255, 255);
     SDL_RenderClear(renderer);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-
+    
     SDL_Rect cell;
-    // fill hovered item cell
-    if (game->hovered.item != -1) {
-        cell = SDLex_GridGetCellRect(&game->grid1, game->hovered.item, 0);
-        SDL_SetRenderDrawColor(renderer, 20, 240, 80, 80);
-        SDL_RenderFillRect(renderer, &cell);
-    }
-    // fill hovered player name cell
-    if (game->hovered.player != -1) {
-        cell = SDLex_GridGetCellRect(&game->grid1, -1, game->hovered.player+1);
-        SDL_SetRenderDrawColor(renderer, 240, 20, 20, 80);
-        SDL_RenderFillRect(renderer, &cell);
-    }
-    // fill hovered character name cell
-    if (game->hovered.character != -1) {
-        cell = SDLex_GridGetCellRect(&game->grid2, 0, game->hovered.character);
-        SDL_SetRenderDrawColor(renderer, 0, 20, 240, 80);
-        SDL_RenderFillRect(renderer, &cell);
-    }
-    // fill hovered checkmark cell
-    if (game->hovered.checkmark != -1) {
-        cell = SDLex_GridGetCellRect(&game->grid2, 1, game->hovered.checkmark);
-        SDL_SetRenderDrawColor(renderer, 250, 20, 0, 80);
-        SDL_RenderDrawLine(renderer, cell.x, cell.y, cell.x+cell.w, cell.y+cell.h);
-        SDL_RenderDrawLine(renderer, cell.x+cell.w, cell.y, cell.x, cell.y+cell.h);
-            
-    }
-    // fill selected item cell
-    if (game->selected.item != -1) {
-        cell = SDLex_GridGetCellRect(&game->grid1, game->selected.item, 0);
-        SDL_SetRenderDrawColor(renderer, 20, 240, 80, 220);
-        SDL_RenderFillRect(renderer, &cell);
-    }
-    // fill selected player name cell
-    if (game->selected.player != -1) {
-        cell = SDLex_GridGetCellRect(&game->grid1, -1, game->selected.player+1);
-        SDL_SetRenderDrawColor(renderer, 240, 20, 20, 180);
-        SDL_RenderFillRect(renderer, &cell);
-    }
-    // fill selected character name cell
-    if (game->selected.character != -1) {
-        cell = SDLex_GridGetCellRect(&game->grid2, 0, game->selected.character);
-        SDL_SetRenderDrawColor(renderer, 100, 100, 180, 180);
-        SDL_RenderFillRect(renderer, &cell);
-    }
-    // fill selected checkmarks
-    SDL_SetRenderDrawColor(renderer, 250, 20, 0, 200);
-    for (int i = 0; i < 13; ++i) {
-        if (game->selected.checkmarks[i] != -1) {
-            cell = SDLex_GridGetCellRect(&game->grid2, 1, i);
+    if (!game->ended) {
+        // fill hovered item cell
+        if (game->hovered.item != -1) {
+            cell = SDLex_GridGetCellRect(&game->grid1, game->hovered.item, 0);
+            SDL_SetRenderDrawColor(renderer, 20, 240, 80, 80);
+            SDL_RenderFillRect(renderer, &cell);
+        }
+        // fill hovered player name cell
+        if (game->hovered.player != -1) {
+            cell = SDLex_GridGetCellRect(&game->grid1, -1, game->hovered.player+1);
+            SDL_SetRenderDrawColor(renderer, 240, 20, 20, 80);
+            SDL_RenderFillRect(renderer, &cell);
+        }
+        // fill hovered character name cell
+        if (game->hovered.character != -1) {
+            cell = SDLex_GridGetCellRect(&game->grid2, 0, game->hovered.character);
+            SDL_SetRenderDrawColor(renderer, 0, 20, 240, 80);
+            SDL_RenderFillRect(renderer, &cell);
+        }
+        // fill hovered checkmark cell
+        if (game->hovered.checkmark != -1) {
+            cell = SDLex_GridGetCellRect(&game->grid2, 1, game->hovered.checkmark);
+            SDL_SetRenderDrawColor(renderer, 250, 20, 0, 80);
             SDL_RenderDrawLine(renderer, cell.x, cell.y, cell.x+cell.w, cell.y+cell.h);
             SDL_RenderDrawLine(renderer, cell.x+cell.w, cell.y, cell.x, cell.y+cell.h);
+
+        }
+        // fill selected item cell
+        if (game->selected.item != -1) {
+            cell = SDLex_GridGetCellRect(&game->grid1, game->selected.item, 0);
+            SDL_SetRenderDrawColor(renderer, 20, 240, 80, 220);
+            SDL_RenderFillRect(renderer, &cell);
+        }
+        // fill selected player name cell
+        if (game->selected.player != -1) {
+            cell = SDLex_GridGetCellRect(&game->grid1, -1, game->selected.player+1);
+            SDL_SetRenderDrawColor(renderer, 240, 20, 20, 180);
+            SDL_RenderFillRect(renderer, &cell);
+        }
+        // fill selected character name cell
+        if (game->selected.character != -1) {
+            cell = SDLex_GridGetCellRect(&game->grid2, 0, game->selected.character);
+            SDL_SetRenderDrawColor(renderer, 100, 100, 180, 180);
+            SDL_RenderFillRect(renderer, &cell);
+        }
+        // fill selected checkmarks
+        SDL_SetRenderDrawColor(renderer, 250, 20, 0, 200);
+        for (int i = 0; i < 13; ++i) {
+            if (game->selected.checkmarks[i] != -1) {
+                cell = SDLex_GridGetCellRect(&game->grid2, 1, i);
+                SDL_RenderDrawLine(renderer, cell.x, cell.y, cell.x+cell.w, cell.y+cell.h);
+                SDL_RenderDrawLine(renderer, cell.x+cell.w, cell.y, cell.x, cell.y+cell.h);
+            }
         }
     }
     //draw items sprites and text (grid 1)
@@ -340,7 +342,7 @@ void Game_render(Game* game) {
             if (game->sprites.cards[i].texture)
                SDLex_RenderDrawSprite(renderer, &game->sprites.cards[i]);
         // draw go button when it is my turn to play
-        if (!game->ended && game->turn == game->my_index) {
+        if (game->ended || game->turn == game->my_index) {
             SDLex_RenderDrawSprite(renderer, &game->sprites.btn_go);
         }
         // draw last action description

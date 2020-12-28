@@ -353,6 +353,9 @@ int main(int argc, char* argv[]) {
                     printf("[INFO] Waiting for server messages in thread %lu \n\n", thread);
                 }
             }
+            else if (game.ended) {
+                // afficher le bouton go pour replay
+            }
             else if (game.turn == game.my_index) {
                 SDL_Rect cell = SDLex_SpriteGetBounds(&game.sprites.btn_go);
                 if (SDL_PointInRect(&game.mouse_pos, &cell) && game.started && !game.ended) {

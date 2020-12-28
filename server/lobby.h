@@ -10,7 +10,8 @@
 enum LobbyState {
     LobbyStateWaiting,
     LobbyStateGameStarted,
-    LobbyStateGameEnded
+    LobbyStateGameEnded,
+    LobbyStateReplay,
 };
 
 typedef struct Client {
@@ -58,16 +59,16 @@ void Lobby_reset(Lobby* lobby);
 void Lobby_startGame(Lobby* lobby);
 
 void Lobby_sendMsgs(Lobby* lobby, Player* player);
+void Lobby_rearrangeIndices(Lobby* lobby, int* index);
 
 void Lobby_lock(Lobby* lobby, Player* player);
 void Lobby_unlock(Lobby* lobby, Player* player);
 
 void Lobby_broadcast(Lobby* lobby, char* msg, unsigned int size);
-
 void Lobby_waitAcks(Lobby* lobby);
 
-void* manage_lobby_thread(void* lobby);
 
+void* manage_lobby_thread(void* lobby);
 void* manage_player_thread(void* player);
 
 int send_msg(Player* player, void* buffer, int size);
