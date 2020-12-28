@@ -13,16 +13,82 @@ void Lobby_reset(Lobby* lobby) {
         lobby->players[p] = NULL;
     }
 
-    lobby->game_ended = false;
     lobby->suspect = 0;
     lobby->turn = 0;
     lobby->penalities = 0;
+    lobby->game_ended = false;
+    lobby->quit = false;
 
     MsgQueue_init(&lobby->queue);
-    pthread_cond_init(&lobby->send_next, NULL);
+    pthread_cond_init(&lobby->cond, NULL);
 
     pthread_mutex_init(&lobby->mutex, NULL);
     lobby->locked = false;
+}
+
+void Lobby_startGame(Lobby* lobby) {
+    MsgQueue_clear(&lobby->queue);
+    
+    // broadcast GameStart message to lobby
+    char buffer[256];
+    memset(buffer, 0, sizeof(buffer));
+    buffer[0] = (char)GameStart;
+    int current_i = 1;
+    for (int i = 0; i < 4; ++i) {
+        int name_len = strlen(lobby->players[i]->name);
+        buffer[current_i] = name_len+'0';
+        strcpy(&buffer[current_i+1], lobby->players[i]->name);
+        current_i += name_len+1;
+    }
+    MsgQueue_append(&lobby->queue, buffer, current_i+1, -1);
+
+    printf("     > Lobby %d : Game started ! Distributing cards to players :\n\n", lobby->index);
+    // filling players cards and adding the message to the queue
+    memset(buffer, 0, sizeof(buffer));
+    buffer[0] = (char)DistribCards;
+    int taken_cards = 0;
+    // for each player ...
+    for (int i = 0; i < 4; ++i) {
+        printf("         > Player %d:%s cards : \n", lobby->index, lobby->players[i]->name);
+        // ... choose 3 random cards
+        for (int j = 0; j < 3; ++j) {
+            int card;
+            bool found = false;
+            do {
+                card = rand()%13;
+                if ( ((taken_cards>>card)&1) == 0 ) {
+                    lobby->players[i]->cards[j] = card;
+                    for (int item=0; item<3; ++item) {
+                        int chara_item = DATA.characters_items[card][item];
+                        if (chara_item != -1)
+                            lobby->players[i]->items_count[chara_item] += 1;
+                    }
+                    taken_cards |= 1 << card;
+                    found = true;
+                    printf("           - %2d = %s\n", card, DATA.characters_names[card]);
+                }
+            } while(!found);
+            buffer[1+j] = (char)(card+1);
+        }
+        buffer[4] = '\0';
+        MsgQueue_append(&lobby->queue, buffer, 5, i);
+        printf("\n");
+    }
+    for (int i = 0; i < 13; ++i)
+        if ( ((taken_cards >> i)&1) == 0 )
+            lobby->suspect = i;
+
+    printf("     > Lobby %d : Suspect is \"%s\" (%d)\n\n", lobby->index, DATA.characters_names[lobby->suspect], lobby->suspect);
+
+
+}
+
+void Lobby_sendMsgs(Lobby* lobby, Player* player) {
+    pthread_cond_signal(&lobby->cond);
+    if (player != NULL)
+        deb_log("[SIGN] Lobby %d : Player %s is sending signal to lobby (%lu)\n", lobby->index, player->name, lobby->thread);
+    else
+        deb_log("[SIGN] Lobby %d : Signal was sent\n", lobby->index);
 }
 
 void Lobby_lock(Lobby* lobby, Player* player) {
@@ -30,6 +96,8 @@ void Lobby_lock(Lobby* lobby, Player* player) {
         deb_log("[LOCK] Lobby %d : Player %s waiting for Mutex lock\n", lobby->index, player->name);
     else
         deb_log("[LOCK] Lobby %d : Waiting for Mutex lock\n", lobby->index);
+    // wait the lobby to be unlocked
+    while(lobby->locked);
     pthread_mutex_lock(&lobby->mutex);
     lobby->locked = true;
     deb_log("[LOCK] Lobby %d is locked by %s\n", lobby->index, player == NULL ? "lobby" : player->name);
@@ -86,85 +154,30 @@ inline void Lobby_waitAcks(Lobby* lobby) {
 }
 
 void* manage_lobby_thread(void* lobby) {
-
     Lobby* this_lobby = (Lobby*)lobby;
-    deb_log("[INFO] Lobby %d : Started thread (%ld) \n", this_lobby->index, pthread_self());
-
     MsgQueue* msg_queue = &this_lobby->queue;
-    MsgQueue_clear(msg_queue);
-    
-    // broadcast GameStart message to lobby
-    char buffer[256];
-    memset(buffer, 0, sizeof(buffer));
-    buffer[0] = (char)GameStart;
-    int current_i = 1;
-    for (int i = 0; i < 4; ++i) {
-        int name_len = strlen(this_lobby->players[i]->name);
-        buffer[current_i] = name_len+'0';
-        strcpy(&buffer[current_i+1], this_lobby->players[i]->name);
-        current_i += name_len+1;
-    }
-    MsgQueue_append(msg_queue, buffer, current_i+1, -1);
 
-    printf("     > Lobby %d : Game started ! Distributing cards to players :\n\n", this_lobby->index);
-    // filling players cards and adding the message to the queue
-    memset(buffer, 0, sizeof(buffer));
-    buffer[0] = (char)DistribCards;
-    int taken_cards = 0;
-    for (int i = 0; i < 4; ++i) {
-        printf("         > Player %d:%s cards : \n", this_lobby->index, this_lobby->players[i]->name);
-        for (int j = 0; j < 3; ++j) {
-            int card;
-            bool found = false;
-            do {
-                card = rand()%13;
-                if ( ((taken_cards>>card)&1) == 0 ) {
-                    this_lobby->players[i]->cards[j] = card;
-                    for (int item=0; item<3; ++item) {
-                        int chara_item = DATA.characters_items[card][item];
-                        if (chara_item != -1)
-                            this_lobby->players[i]->items_count[chara_item] += 1;
-                    }
-                    taken_cards |= 1 << card;
-                    found = true;
-                    printf("           - %2d = %s\n", card, DATA.characters_names[card]);
-                }
-            } while(!found);
-            buffer[1+j] = (char)(card+1);
-        }
-        buffer[4] = '\0';
-        MsgQueue_append(msg_queue, buffer, 5, i);
-        printf("\n");
-    }
-    for (int i = 0; i < 13; ++i)
-        if ( ((taken_cards >> i)&1) == 0 )
-            this_lobby->suspect = i;
-
-    printf("     > Lobby %d : Suspect is \"%s\" (%d)\n\n", this_lobby->index, DATA.characters_names[this_lobby->suspect], this_lobby->suspect);
-
-    bool close_lobby = false;
-    bool first_msg = true;
-
+    deb_log("[INFO] Lobby %d : Started thread (%ld) \n", this_lobby->index, pthread_self());
+    Lobby_lock(this_lobby, NULL);
     while (1) {
-        if (this_lobby->players_nb == 0)
-            close_lobby = true;
-        if (close_lobby)
+        deb_log("[SIGN] Lobby %d waiting signal for sending. Lock released \n", this_lobby->index);
+        
+        this_lobby->locked = false;
+        pthread_cond_wait(&this_lobby->cond, &this_lobby->mutex);
+        this_lobby->locked = true;
+
+        deb_log("[SIGN] Lobby %d received signal. Mutex locked \n", this_lobby->index);
+
+        if (this_lobby->quit) {
+            Lobby_unlock(this_lobby, NULL);
             break;
-
-        Lobby_lock(this_lobby, NULL);
-        if (!first_msg) {
-            deb_log("[SIGN] Lobby %d waiting signal for sending. Lock released \n", this_lobby->index);
-            pthread_cond_wait(&this_lobby->send_next, &this_lobby->mutex);
         }
-        else
-            first_msg = false;
 
-            
         while (msg_queue->size > 0) {
             MsgNode* msg = MsgQueue_front(msg_queue);
-
             if (msg->dest == -1) {
                 Lobby_broadcast(this_lobby, msg->msg, msg->size);
+                // waiting acks is really optionnal, but why not
                 if (msg->msg[0] != (char)QuitLobby)
                     Lobby_waitAcks(this_lobby);
             }
@@ -172,26 +185,15 @@ void* manage_lobby_thread(void* lobby) {
                 Player* player = this_lobby->players[msg->dest];
                 send_msg(player, msg->msg, msg->size);
             }
-
-            if (msg->msg[0] == (char)QuitLobby) {
-                close_lobby = true;
-                
-            }
             MsgQueue_pop(msg_queue);
         }
-        
-        if (close_lobby) {
-            for (int i = 0; i < 4; ++i)
-                if (this_lobby->players[i] != NULL)
-                    this_lobby->players[i]->leave = true;
-        }
-        Lobby_unlock(this_lobby, NULL);
+    
     }
+    Lobby_unlock(this_lobby, NULL);
 
     deb_log("[INFO] Lobby %d : Closing thread (%ld) \n", this_lobby->index, pthread_self());
     this_lobby->players_nb = 0;
     this_lobby->game_ended = false;
-    //*this_lobby->lobby_states &= 0 << this_lobby->index ;
     MsgQueue_clear(msg_queue);
     pthread_exit(NULL);
 }
@@ -221,56 +223,57 @@ void* manage_player_thread(void* player) {
             }
                 
             Lobby_lock(this_lobby, this_player);
-
             if (this_player->leave) {
                 printf("     > Lobby %d : Player %s is leaving.\n\n", this_lobby->index, this_player->name);
                 Lobby_unlock(this_lobby, this_player);
                 break;
             }
-            
             if (!this_lobby->game_ended) {
                 // player was the only on in lobby
                 if (this_lobby->players_nb == 1) {
                     this_lobby->players_nb--;
                 }
-                // a player qui while in game
+                // a player quit while in game
                 else if (this_lobby->players_nb == 4) {
                     printf("     > Lobby %d : Player %s quitted game !\n\n", this_lobby->index, this_player->name);
                     // create Quit message
                     tmp[0] = (char)QuitLobby;
                     tmp[1] = '\0';
-                    this_player->leave = true;
-                    MsgQueue_append(&this_lobby->queue, tmp, 2, -1);
+                    // send it to the other players in lobby
+                    for (int i = 0; i < 4; ++i) {
+                        this_lobby->players[i]->leave = true;
+                        if (i != this_player->index)
+                            MsgQueue_append(&this_lobby->queue, tmp, 2, i);
+                    }
                 }
                 else {
-                    printf("     > Lobby %d : Player %s has quit, %d players remaning in lobby %d\n\n", this_lobby->index, this_player->name, this_lobby->players_nb, this_lobby->index);
+                    printf("     > Lobby %d : Player %s has quit, %d players remaning in lobby %d\n\n",
+                            this_lobby->index, this_player->name, this_lobby->players_nb-1, this_lobby->index);
                     // rearange players index
                     for (int i = this_player->index; i < 2; ++i) {
                         this_lobby->players[i] = this_lobby->players[i+1];
+                        this_lobby->players[i+1] = this_player;
+                        if (this_lobby->players[i])
+                            this_lobby->players[i]->index--;
                         this_player->index++;
                     }
                     this_lobby->players_nb--;
                     for (int i = this_lobby->players_nb; i < 4; ++i) {
                         this_lobby->players[i] = NULL;
                     }
+                    
                     tmp[0] = (char)WaitingPlayers;
                     tmp[1] = this_lobby->players_nb+'0';
                     tmp[2] = '\0';
-                    Lobby_broadcast(this_lobby, tmp, 3);
-                    Lobby_waitAcks(this_lobby);
+                    MsgQueue_append(&this_lobby->queue, tmp, 3, -1);
                 }
-                pthread_cond_signal(&this_lobby->send_next);
+                Lobby_sendMsgs(this_lobby, this_player);
             }
             else if (this_lobby->game_ended) {
                 this_lobby->players_nb--;
                 if (this_lobby->players_nb == 0) {
-                    // create Quit message
-                    tmp[0] = (char)QuitLobby;
-                    tmp[1] = '\0';
-                    this_player->leave = true;
-                    MsgQueue_append(&this_lobby->queue, tmp, 2, -1);
+                    this_lobby->game_ended = false;
                 }
-                pthread_cond_signal(&this_lobby->send_next);
             }
             
             this_lobby->players[this_player->index] = NULL;
@@ -288,7 +291,7 @@ void* manage_player_thread(void* player) {
                 case AskPlayer:
                     pl = (int)(buffer[2]-'0');
                     it = (int)(buffer[3]-'0');
-                    printf("     > Lobby %d : %s is asking %s how many \"%ss\" he has. Answer : %d\n\n",
+                    printf("     > Lobby %d : %s is asking %s how many \"%ss\" they have. Answer : %d\n\n",
                             this_lobby->index, this_player->name, this_lobby->players[pl]->name, DATA.items_names[it], this_lobby->players[pl]->items_count[it]);
                     tmp[0] = (char)AnswerPlayer;
                     tmp[1] = pl+'0';
@@ -360,7 +363,7 @@ void* manage_player_thread(void* player) {
                 MsgQueue_append(&this_lobby->queue, tmp, 3, -1);
             }
 
-            pthread_cond_signal(&this_lobby->send_next);
+            Lobby_sendMsgs(this_lobby, this_player);
             Lobby_unlock(this_lobby, this_player);
         }
     }

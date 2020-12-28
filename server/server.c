@@ -23,6 +23,8 @@
 
 
 Lobby lobbies_array[MAX_LOBBIES];
+Player player_server;
+
 extern bool debug;
 int server_sfd = -1;
 struct addrinfo* server_ai;
@@ -32,6 +34,18 @@ struct sigaction default_sigint;
 
 void exit_server(int sig_no) {
     printf("\n[INFO] CTRL-C pressed (SIGINT). Closing server.\n");
+    // join lobby threads
+    printf("[INFO] Server : Waiting lobbies threads to terminate and join\n\n");
+    for (int i = 0; i < MAX_LOBBIES; ++i) {
+        lobbies_array[i].quit = true;
+        Lobby_lock(&lobbies_array[i], &player_server);
+        Lobby_sendMsgs(&lobbies_array[i], &player_server);
+        Lobby_unlock(&lobbies_array[i], &player_server);
+        pthread_join(lobbies_array[i].thread, NULL);
+        printf("\r[INFO] Thread %i/%ld deleted.%s", i+1, MAX_LOBBIES, debug ? "\n\n" : "");
+        fflush(stdout);
+    }
+    printf("\n\n");
     if (server_sfd >= 0) {
         close(server_sfd);
         freeaddrinfo(server_ai);
@@ -43,7 +57,9 @@ void exit_server(int sig_no) {
 
 int main(int argc, char* argv[]) {
     srand(time(NULL));
-    debug = true;
+    debug = false;
+    strcpy(player_server.name, "Server");
+
     if (argc < 2) {
         printf("Commande usage : ./server <port_number> \n");
         return EXIT_SUCCESS;
@@ -51,6 +67,11 @@ int main(int argc, char* argv[]) {
     if (!isUInt(argv[1])) {
         fprintf(stderr, "[ERROR] Argument <port_number> must be an unsigned int.\n");
         return EXIT_FAILURE;
+    }
+    if (argc > 2) {
+        if (strcmp(argv[2], "-d") == 0 || strcmp(argv[2], "--debug") == 0) {
+            debug = true;
+        }
     }
 
     // will call exit_server when SIGINT is received (Ctrl+C)
@@ -91,11 +112,18 @@ int main(int argc, char* argv[]) {
     
     // reset all lobbies
     memset(lobbies_array, 0, sizeof(Lobby)*MAX_LOBBIES);
+    printf("[INFO] Server : Creating thread pool. \n\n");
     for (int i = 0; i < MAX_LOBBIES; i++) {
         lobbies_array[i].index = i;
         Lobby_reset(&lobbies_array[i]);
-        //lobbies_array[i].lobby_states = &lobbies_states;
+        pthread_t lobby_thread;
+        pthread_create(&lobby_thread, NULL, manage_lobby_thread, &lobbies_array[i]);
+        lobbies_array[i].thread = lobby_thread;
+        printf("\r[INFO] Thread %i/%ld created.%s", i+1, MAX_LOBBIES, debug ? "\n\n" : "");
+        fflush(stdout);
     }
+    printf("%s[INFO] Server : Thread pool created. \n\n", debug ? "":"\n\n");
+
     
     while (1) {
         // wait for new client connection and accept it
@@ -132,8 +160,6 @@ int main(int argc, char* argv[]) {
         }
 
         Lobby* lobby = &lobbies_array[lobby_index];
-        if (lobby->players_nb == 0)
-            Lobby_reset(lobby);
 
         if (lobby->players_nb < 4) {
             
@@ -178,17 +204,12 @@ int main(int argc, char* argv[]) {
             buffer[0] = (char)WaitingPlayers;
             buffer[1] = (char)lobby->players_nb+'0';
             buffer[2] = '\0';
-            Lobby_lock(lobby, NULL);
-            Lobby_broadcast(lobby, buffer, 3);
-            Lobby_waitAcks(lobby);
-            Lobby_unlock(lobby, NULL);
-
-             if (lobby->players_nb == 4) {
-                // create thread for lobby and start game
-                pthread_t lobby_thread;
-                pthread_create(&lobby_thread, NULL, manage_lobby_thread, lobby);
-                pthread_detach(lobby_thread);
-            }
+            Lobby_lock(lobby, &player_server);
+            MsgQueue_append(&lobby->queue, buffer, 3, -1);
+            if (lobby->players_nb == 4)
+                Lobby_startGame(lobby);
+            Lobby_sendMsgs(lobby, &player_server);
+            Lobby_unlock(lobby, &player_server);
         }
     }
 

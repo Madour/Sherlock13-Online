@@ -53,5 +53,5 @@ void MsgQueue_print(MsgQueue* queue) {
     MsgNode* node;
     int i = 0;
     for (node = queue->head; node != NULL; node = node->next)
-        printf("%d - msg: %s  size: %d  dest: %d\n", i++, node->msg, node->size, node->dest);
+        printf("\t%d -\tmsg: %s\t\tsize: %d\t\tdest: %d\n", i++, node->msg, node->size, node->dest);
 }

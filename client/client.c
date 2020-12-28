@@ -257,6 +257,11 @@ int main(int argc, char* argv[]) {
         fprintf(stderr, "[ERROR] Argument <port_number> must be an unsigned int.\n");
         return EXIT_FAILURE; 
     }
+    if (argc > 4) {
+         if (strcmp(argv[4], "-d") == 0 || strcmp(argv[4], "--debug") == 0) {
+            debug = true;
+        }
+    }
 
     host_name = argv[1];
     port = argv[2];

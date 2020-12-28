@@ -5,7 +5,7 @@
 #include "server/msg_queue.h"
 
 
-#define MAX_LOBBIES 32
+#define MAX_LOBBIES (sizeof(int)*8)
 
 
 typedef struct Client {
@@ -33,20 +33,25 @@ typedef struct Lobby {
     Player* players[4];
     int players_nb;
 
-    bool game_ended;
     int suspect;
     int turn;
     int penalities;
+    bool game_ended;
+    bool quit;
 
     MsgQueue queue;
-    pthread_cond_t send_next;
+    pthread_cond_t cond;
 
+    pthread_t thread;
     pthread_mutex_t mutex;
     bool locked;
 
 } Lobby;
 
 void Lobby_reset(Lobby* lobby);
+void Lobby_startGame(Lobby* lobby);
+
+void Lobby_sendMsgs(Lobby* lobby, Player* player);
 
 void Lobby_lock(Lobby* lobby, Player* player);
 void Lobby_unlock(Lobby* lobby, Player* player);
