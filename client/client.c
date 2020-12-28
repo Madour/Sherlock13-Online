@@ -74,7 +74,7 @@ int recv_msg(int sfd, void* buffer, int size) {
     return r;
 }
 
-void* receive_server_msgs_thread(void* args) {
+void* wait_server_msgs_thread(void* args) {
     char buffer[256];
     char tmp[256];
     int pl, it;
@@ -344,7 +344,7 @@ int main(int argc, char* argv[]) {
 
                     // start thread asap
                     pthread_t thread;
-                    pthread_create(&thread, NULL, receive_server_msgs_thread, NULL);
+                    pthread_create(&thread, NULL, wait_server_msgs_thread, NULL);
                     printf("[INFO] Waiting for server messages in thread %lu \n\n", thread);
                 }
             }
