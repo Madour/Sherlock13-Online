@@ -107,22 +107,27 @@ int main(int argc, char* argv[]) {
             fprintf(stderr, "[ERROR] Server accept failed.\n");
             return EXIT_FAILURE;
         }
-        deb_log("[INFO] Accepting a connection from %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+        deb_log("[INFO] Server : Accepting a connection from %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
-        // search for an available lobby
-        int lobby_index=0;
-        while( (lobbies_states>>lobby_index)&1 ) {
-            if (lobby_index < MAX_LOBBIES-1)
-                lobby_index++;
-            else {
-                lobby_index = -1;
-                break;
+        // search for an available lobby, find the one with the most players waiting in
+        int lobby_index = 0;
+        int max_players_nb = -1;
+        deb_log("[INFO] Server : Searching for an available lobby");
+        for (int i = 0; i < MAX_LOBBIES; ++i) {
+            pthread_mutex_lock(&lobbies_array[i].mutex);
+            if (lobbies_array[i].players_nb != 4 && !lobbies_array[i].game_ended) {
+                if (lobbies_array[i].players_nb > max_players_nb) {
+                    deb_log("       Found Lobby %d with %d players\n", i, lobbies_array[i].players_nb);
+                    lobby_index = i;
+                    max_players_nb = lobbies_array[i].players_nb;
+                }
             }
+            pthread_mutex_unlock(&lobbies_array[i].mutex);
         }
 
         // no available lobbies, decline the client
         if (lobby_index == -1) {
-            printf("[INFO] No available lobbies ! Closing connection with client.\n");
+            deb_log("[INFO] Server : No available lobbies ! Closing connection with client.\n");
             close(client_sfd);
             continue;
         }
@@ -147,7 +152,7 @@ int main(int argc, char* argv[]) {
             new_player->lobby = lobby;
             new_player->index = lobby->players_nb;
             for (int i = 0; i < 8; ++i)
-                new_player->items_count[8] = 0;
+                new_player->items_count[i] = 0;
             strcpy(new_player->name, "");
             new_player->leave = false;
             
@@ -169,7 +174,7 @@ int main(int argc, char* argv[]) {
 
             lobby->players_nb++;
 
-            deb_log("[INFO] Number of players connected to lobby %d : %d\n", lobby_index, lobby->players_nb);
+            deb_log("[INFO] Server : Number of players connected to lobby %d : %d\n", lobby_index, lobby->players_nb);
 
             buffer[0] = (char)WaitingPlayers;
             buffer[1] = (char)lobby->players_nb+'0';

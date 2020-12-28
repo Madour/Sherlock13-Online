@@ -192,6 +192,7 @@ void* manage_lobby_thread(void* lobby) {
 
     deb_log("[INFO] Lobby %d : Closing thread (%ld) \n", this_lobby->index, pthread_self());
     this_lobby->players_nb = 0;
+    this_lobby->game_ended = false;
     *this_lobby->lobby_states &= 0 << this_lobby->index ;
     MsgQueue_clear(msg_queue);
     pthread_exit(NULL);
@@ -228,40 +229,52 @@ void* manage_player_thread(void* player) {
                 Lobby_unlock(this_lobby, this_player);
                 break;
             }
-            // player was the only on in lobby
-            if (this_lobby->players_nb == 1) {
-                this_lobby->players_nb--;
-            }
-            // game not started yet, tell other players in lobby that this_player has quit
-            else if (1 < this_lobby->players_nb && this_lobby->players_nb < 4) {
-                printf("     > Lobby %d : Player %s has quit, %d players remaning in lobby %d\n\n", this_lobby->index, this_player->name, this_lobby->players_nb, this_lobby->index);
-                // rearange players index
-                for (int i = this_player->index; i < 2; ++i) {
-                    this_lobby->players[i] = this_lobby->players[i+1];
-                    this_player->index++;
+            
+            if (!this_lobby->game_ended) {
+                // player was the only on in lobby
+                if (this_lobby->players_nb == 1) {
+                    this_lobby->players_nb--;
                 }
-                this_lobby->players_nb--;
-                for (int i = this_lobby->players_nb; i < 4; ++i) {
-                    this_lobby->players[i] = NULL;
+                // a player qui while in game
+                else if (this_lobby->players_nb == 4) {
+                    printf("     > Lobby %d : Player %s quitted game !\n\n", this_lobby->index, this_player->name);
+                    // create Quit message
+                    tmp[0] = (char)QuitLobby;
+                    tmp[1] = '\0';
+                    this_player->leave = true;
+                    MsgQueue_append(&this_lobby->queue, tmp, 2, -1);
                 }
-                
-                tmp[0] = (char)WaitingPlayers;
-                tmp[1] = this_lobby->players_nb+'0';
-                tmp[2] = '\0';
-                Lobby_broadcast(this_lobby, tmp, 3);
-                Lobby_waitAcks(this_lobby);
-            }
-            // if game already started, just make everyone quit
-            else if (this_lobby->players_nb == 4) {
-                printf("     > Lobby %d : Player %s quitted game !\n\n", this_lobby->index, this_player->name);
-                // create Quit message
-                tmp[0] = (char)QuitLobby;
-                tmp[1] = '\0';
-                this_player->leave = true;
-                MsgQueue_append(&this_lobby->queue, tmp, 2, -1);
-                // send "send next" signal to lobby
+                else {
+                    printf("     > Lobby %d : Player %s has quit, %d players remaning in lobby %d\n\n", this_lobby->index, this_player->name, this_lobby->players_nb, this_lobby->index);
+                    // rearange players index
+                    for (int i = this_player->index; i < 2; ++i) {
+                        this_lobby->players[i] = this_lobby->players[i+1];
+                        this_player->index++;
+                    }
+                    this_lobby->players_nb--;
+                    for (int i = this_lobby->players_nb; i < 4; ++i) {
+                        this_lobby->players[i] = NULL;
+                    }
+                    tmp[0] = (char)WaitingPlayers;
+                    tmp[1] = this_lobby->players_nb+'0';
+                    tmp[2] = '\0';
+                    Lobby_broadcast(this_lobby, tmp, 3);
+                    Lobby_waitAcks(this_lobby);
+                }
                 pthread_cond_signal(&this_lobby->send_next);
             }
+            else if (this_lobby->game_ended) {
+                this_lobby->players_nb--;
+                if (this_lobby->players_nb == 0) {
+                    // create Quit message
+                    tmp[0] = (char)QuitLobby;
+                    tmp[1] = '\0';
+                    this_player->leave = true;
+                    MsgQueue_append(&this_lobby->queue, tmp, 2, -1);
+                }
+                pthread_cond_signal(&this_lobby->send_next);
+            }
+            
             this_lobby->players[this_player->index] = NULL;
             Lobby_unlock(this_lobby, this_player);
             break;
@@ -356,6 +369,7 @@ void* manage_player_thread(void* player) {
     close(this_player->client.sfd);
     if (this_player != NULL) {
         deb_log("[INFO] Player %d:%s closing thread and freeing %ld bytes\n", this_lobby->index, this_player->name, sizeof(Player));
+        this_lobby->players[this_player->index] = NULL;
         free(this_player);
     }
     pthread_exit(NULL);

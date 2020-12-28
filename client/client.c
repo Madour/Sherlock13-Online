@@ -22,6 +22,7 @@
 #define WINDOW_W 1024
 #define WINDOW_H 768
 
+extern bool debug;
 char* host_name;
 char* port;
 char* my_name;
@@ -173,7 +174,6 @@ void* receive_server_msgs_thread(void* args) {
                         game.players_items_count[pl][it], game.data->items_names[it], game.players_items_count[pl][it] > 1 ? "s":"");
                 sprintf(tmp, "%s has a total of %d \"%s%s\"", game.players[pl].name, 
                         game.players_items_count[pl][it], game.data->items_names[it], game.players_items_count[pl][it] > 1 ? "s":"");
-                printf("<<< Action : %s >>>\n\n", tmp);
                 SDLex_TextSetString(game.texts.action_description, tmp);
                 break;
 
@@ -202,7 +202,6 @@ void* receive_server_msgs_thread(void* args) {
                     
                 }
                 SDLex_TextSetString(game.texts.action_description, tmp);
-                printf("<<< Action : %s >>>\n\n", tmp);
                 break;
 
             case AnswerSuspect:
@@ -249,6 +248,7 @@ void* receive_server_msgs_thread(void* args) {
 }
 
 int main(int argc, char* argv[]) {
+    debug = false;
     if (argc < 4) {
         printf("Commande usage : ./game <host_name> <port_number> <player_name>\n");
         return EXIT_SUCCESS;
@@ -329,7 +329,7 @@ int main(int argc, char* argv[]) {
                         return EXIT_FAILURE;
                     }
                     game.connected = true;
-                    printf("[INFO] Connected to server %s:%u \n\n", inet_ntoa(((struct sockaddr_in*)server_ai->ai_addr)->sin_addr), ntohs(((struct sockaddr_in*)server_ai->ai_addr)->sin_port));
+                    deb_log("[INFO] Connected to server %s:%u \n\n", inet_ntoa(((struct sockaddr_in*)server_ai->ai_addr)->sin_addr), ntohs(((struct sockaddr_in*)server_ai->ai_addr)->sin_port));
                     
                     // send player name
                     int msg_size = send_msg(socket_fd, my_name, strlen(my_name)+1);
