@@ -384,7 +384,6 @@ int main(int argc, char* argv[]) {
                         game.selected.character = game.selected.item = game.selected.player = -1;
                     }
                 }
-
             }
         }
 

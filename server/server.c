@@ -23,7 +23,6 @@
 
 
 Lobby lobbies_array[MAX_LOBBIES];
-int lobbies_states=0; // bit i set to 1 = lobby i is full, maximum of 32 lobbies
 extern bool debug;
 int server_sfd = -1;
 struct addrinfo* server_ai;
@@ -95,7 +94,7 @@ int main(int argc, char* argv[]) {
     for (int i = 0; i < MAX_LOBBIES; i++) {
         lobbies_array[i].index = i;
         Lobby_reset(&lobbies_array[i]);
-        lobbies_array[i].lobby_states = &lobbies_states;
+        //lobbies_array[i].lobby_states = &lobbies_states;
     }
     
     while (1) {
@@ -185,8 +184,6 @@ int main(int argc, char* argv[]) {
             Lobby_unlock(lobby, NULL);
 
              if (lobby->players_nb == 4) {
-                // setting lobby state to full
-                lobbies_states |= 1 << lobby_index;
                 // create thread for lobby and start game
                 pthread_t lobby_thread;
                 pthread_create(&lobby_thread, NULL, manage_lobby_thread, lobby);

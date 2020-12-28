@@ -10,8 +10,6 @@
 
 void Lobby_reset(Lobby* lobby) {
     for (int p = 0; p < 4; ++p) {
-        /*if (lobby->players[p] != NULL)
-            free(lobby->players[p]);*/
         lobby->players[p] = NULL;
     }
 
@@ -193,7 +191,7 @@ void* manage_lobby_thread(void* lobby) {
     deb_log("[INFO] Lobby %d : Closing thread (%ld) \n", this_lobby->index, pthread_self());
     this_lobby->players_nb = 0;
     this_lobby->game_ended = false;
-    *this_lobby->lobby_states &= 0 << this_lobby->index ;
+    //*this_lobby->lobby_states &= 0 << this_lobby->index ;
     MsgQueue_clear(msg_queue);
     pthread_exit(NULL);
 }

@@ -44,8 +44,6 @@ typedef struct Lobby {
     pthread_mutex_t mutex;
     bool locked;
 
-    // global lobbies state
-    int* lobby_states;
 } Lobby;
 
 void Lobby_reset(Lobby* lobby);
