@@ -1,6 +1,6 @@
 # SH13 Online
 
-> This markdown file uses mermaid for class diagrams and js-sequence for sequence diagrams
+> This markdown file uses mermaid for class diagrams and js-sequence for sequence diagrams, you can look at the generated README.html
 
 ### Build and run
 
@@ -8,7 +8,7 @@ The makefile is provided. Run make at project root. Programs will be created in 
 
 For server : `./server.exe <port> [-d|--debug]`
 
-For client : `./client.exe <host> <port> [-d|-debug]`
+For client : `./client.exe <host> <port> [-d|--debug]`
 
 Debug option will run the programs with a (*very*, at least for the server) verbose output.
 
