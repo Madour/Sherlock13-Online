@@ -1,3 +1,9 @@
+/**
+ * @file game.c
+ * @author Modar Nasser
+ * @copyright Copyright (c) 2020
+ */
+
 #include "client/game.h"
 
 

@@ -1,3 +1,9 @@
+/**
+ * @file lobby.c
+ * @author Modar Nasser
+ * @copyright Copyright (c) 2020
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -5,7 +11,7 @@
 
 #include <pthread.h>
 
-#include "common/typedefs.h"
+#include "common/data.h"
 #include "server/lobby.h"
 
 void Lobby_reset(Lobby* lobby) {

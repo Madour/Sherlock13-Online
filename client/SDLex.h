@@ -1,8 +1,10 @@
-/*
+/**
  * @file SDLex.h
  * @author Modar Nasser
- * @brief Some useful functions to extend SDL2
+ * @brief A small SDL2 extension library
  * @date 2020-11-04
+ * 
+ * @copyright Copyright (c) 2020
  */
 
 #ifndef SDL_EX_H
@@ -24,7 +26,7 @@ extern const SDL_Color SDL_ex_CYAN;
 //---------------TEXTURE---------------------------//
 
 /**
- * @brief Load a Texture from a file
+ * @brief Load a Texture from a file. The user is in charge of freeing it.
  * 
  * @param renderer Renderer used 
  * @param filename 
@@ -61,7 +63,7 @@ typedef struct SDLex_Sprite {
  * @brief Returns the global bounds of a SDLex sprite
  * 
  * @param sprite 
- * @return SDL_FRect Sprite bounds
+ * @return SDL_Rect
  */
 SDL_Rect SDLex_SpriteGetBounds(SDLex_Sprite* sprite);
 
@@ -72,6 +74,15 @@ SDL_Rect SDLex_SpriteGetBounds(SDLex_Sprite* sprite);
  * @param sprite 
  */
 void SDLex_RenderDrawSprite(SDL_Renderer* renderer, SDLex_Sprite* sprite);
+
+/**
+ * @brief Render a SDLex sprite at a specified location
+ * 
+ * @param renderer 
+ * @param sprite 
+ * @param x 
+ * @param y 
+ */
 void SDLex_RenderDrawSpriteAt(SDL_Renderer* renderer, SDLex_Sprite* sprite, int x, int y);
 
 //------------------------------------------------//
@@ -79,6 +90,10 @@ void SDLex_RenderDrawSpriteAt(SDL_Renderer* renderer, SDLex_Sprite* sprite, int 
 
 //---------------TEXT---------------------------//
 
+/**
+ * @brief Represents a text than can be rendered on screen
+ * 
+ */
 typedef struct SDLex_Text {
     SDLex_Sprite drawable;
     TTF_Font* font;
@@ -86,6 +101,14 @@ typedef struct SDLex_Text {
 } SDLex_Text;
 
 
+/**
+ * @brief Creates a SDLex text. Don't forget to destroy it when needed to avoid memory leaks.
+ * 
+ * @param renderer 
+ * @param string 
+ * @param font
+ * @return SDLex_Text* 
+ */
 SDLex_Text* SDLex_CreateText(SDL_Renderer* renderer, char* string, TTF_Font* font);
 
 void SDLex_TextSetPosition(SDLex_Text* text, int x, int y);

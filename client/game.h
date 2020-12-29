@@ -1,9 +1,15 @@
+/**
+ * @file game.h
+ * @author Modar Nasser
+ * @copyright Copyright (c) 2020
+ */
+
 #ifndef GAME_H
 #define GAME_H
 
 #include <stdbool.h>
 #include "client/SDLex.h"
-#include "common/typedefs.h"
+#include "common/data.h"
 
 typedef struct Player {
     char name[32];

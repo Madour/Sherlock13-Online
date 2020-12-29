@@ -1,3 +1,9 @@
+/**
+ * @file server.c
+ * @author Modar Nasser
+ * @copyright Copyright (c) 2020
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -17,7 +23,7 @@
 #include <sched.h>
 
 #include "common/utils.h"
-#include "common/typedefs.h"
+#include "common/data.h"
 #include "server/lobby.h"
 #include "server/msg_queue.h"
 
@@ -29,9 +35,10 @@ extern bool debug;
 int server_sfd = -1;
 struct addrinfo* server_ai;
 
-// gère Ctrl+C
+
 struct sigaction default_sigint;
 
+// server will most likely be stopped by Ctrl+C (SIGINT)
 void exit_server(int sig_no) {
     printf("\n[INFO] CTRL-C pressed (SIGINT). Closing server.\n");
     // join lobby threads
@@ -137,7 +144,7 @@ int main(int argc, char* argv[]) {
         deb_log("[INFO] Server : Accepting a connection from %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
         // search for an available lobby, find the one with the most players waiting in
-        int lobby_index = 0;
+        int lobby_index = -1;
         int max_players_nb = -1;
         deb_log("[INFO] Server : Searching for an available lobby");
         for (int i = 0; i < MAX_LOBBIES; ++i) {
@@ -161,12 +168,13 @@ int main(int argc, char* argv[]) {
 
         Lobby* lobby = &lobbies_array[lobby_index];
 
+        // security check, but should always be true
         if (lobby->players_nb < 4) {
             
-            // get player pointer
+            // create a new player
             Player* new_player = (Player*)malloc(sizeof(Player));
 
-            // fill new player client info
+            // fill new player client information
             new_player->client.sfd = client_sfd;
             strcpy(new_player->client.ip, inet_ntoa(client_addr.sin_addr));
             new_player->client.port = ntohs(client_addr.sin_port);
@@ -197,11 +205,13 @@ int main(int argc, char* argv[]) {
 
             deb_log("[INFO] Server : Number of players connected to lobby %d : %d\n", lobby_index, lobby->players_nb);
 
+            // broadcast to the lobby to tell other players a new player just connected
             buffer[0] = (char)WaitingPlayers;
             buffer[1] = (char)lobby->players_nb+'0';
             buffer[2] = '\0';
             Lobby_lock(lobby, &player_server);
             MsgQueue_append(&lobby->queue, buffer, 3, -1);
+            // if this player is the fourth, start the game
             if (lobby->players_nb == 4)
                 Lobby_startGame(lobby);
             Lobby_sendMsgs(lobby, &player_server);

@@ -1,3 +1,9 @@
+/**
+ * @file msg_queue.h
+ * @author Modar Nasser
+ * @copyright Copyright (c) 2020
+ */
+
 #ifndef MSG_QUEUE_H
 #define MSG_QUEUE_H
 

@@ -1,3 +1,10 @@
+/**
+ * @file msg_queue.c
+ * @author Modar Nasser
+ * @copyright Copyright (c) 2020
+ */
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

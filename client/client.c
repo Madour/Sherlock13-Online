@@ -1,3 +1,9 @@
+/**
+ * @file client.c
+ * @author Modar Nasser
+ * @copyright Copyright (c) 2020
+ */
+
 #include <stdlib.h>
 #include <stdbool.h>
 
@@ -15,7 +21,7 @@
 #include <sched.h>
 
 #include "common/utils.h"
-#include "common/typedefs.h"
+#include "common/data.h"
 #include "client/SDLex.h"
 #include "client/game.h"
 
@@ -31,6 +37,7 @@ int socket_fd = -1;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 Game game;
 
+// utility functions for sending and receiving message from server
 int send_msg(int sfd, void* buffer, int size) {
     int r = write(sfd, buffer, size);
     char* data = (char*)buffer;
@@ -52,7 +59,6 @@ int send_msg(int sfd, void* buffer, int size) {
     }
     return r;
 }
-
 int recv_msg(int sfd, void* buffer, int size) {
     int r = read(sfd, buffer, size);
     char* data = (char*)buffer;
@@ -74,6 +80,7 @@ int recv_msg(int sfd, void* buffer, int size) {
     return r;
 }
 
+// wait for server messages in this thread
 void* wait_server_msgs_thread(void* args) {
     char buffer[256];
     char tmp[256];
@@ -273,6 +280,7 @@ int main(int argc, char* argv[]) {
     };
     getaddrinfo(host_name, port, &hints, &server_ai);
     
+    // create SDL window and renderer
     SDL_Init(SDL_INIT_VIDEO);
     IMG_Init(IMG_INIT_JPG|IMG_INIT_PNG);
     TTF_Init();
@@ -290,6 +298,7 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
+    // init game (load textures, create texts and sprites ...)
     Game_init(&game, renderer);
 
     while(!game.quit) {
@@ -350,7 +359,7 @@ int main(int argc, char* argv[]) {
                 }
             }
             else if (game.ended) {
-                // afficher le bouton go pour replay
+                // when game ends, show the go button, press it to replay
                 SDL_Rect cell = SDLex_SpriteGetBounds(&game.sprites.btn_go);
                 if (SDL_PointInRect(&game.mouse_pos, &cell)) {
                     char buffer[2];
@@ -361,6 +370,7 @@ int main(int argc, char* argv[]) {
                 }
             }
             else if (game.started && game.turn == game.my_index) {
+                // my turn to play, send the right action when the go button is clicked
                 SDL_Rect cell = SDLex_SpriteGetBounds(&game.sprites.btn_go);
                 if (SDL_PointInRect(&game.mouse_pos, &cell)) {
                     if (game.selected.item != -1 || game.selected.player != -1 || game.selected.character != -1) {

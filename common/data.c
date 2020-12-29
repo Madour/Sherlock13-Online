@@ -1,7 +1,13 @@
+/**
+ * @file data.c
+ * @author Modar Nasser
+ * @copyright Copyright (c) 2020
+ */
+
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
-#include "common/typedefs.h"
+#include "common/data.h"
 
 const struct GameData DATA = {
     {

@@ -1,3 +1,9 @@
+/**
+ * @file data.h
+ * @author Modar Nasser
+ * @copyright Copyright (c) 2020
+ */
+
 #ifndef TYPEDEFS_H
 #define TYPEDEFS_H
 

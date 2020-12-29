@@ -1,8 +1,10 @@
-
 /**
  * @file SDLex.c
  * @author Modar Nasser
+ * @brief A small SDL2 extension library
  * @date 2020-11-04
+ * 
+ * @copyright Copyright (c) 2020
  */
 
 #include "SDLex.h"
@@ -17,6 +19,8 @@ const SDL_Color SDL_ex_YELLOW = {255, 255, 0};
 const SDL_Color SDL_ex_MAGENTA = {255, 0, 255};
 const SDL_Color SDL_ex_CYAN = {0, 255, 255};
 
+
+//---------------TEXTURE---------------------------//
 
 SDL_Texture* SDLex_LoadTextureFromFile(SDL_Renderer* renderer, const char* filename) {
     SDL_Texture* texture = IMG_LoadTexture(renderer, filename);
@@ -44,6 +48,9 @@ SDL_Rect SDLex_SpriteGetBounds(SDLex_Sprite* sprite) {
     };
 }
 
+//------------------------------------------------//
+
+//---------------SPRITE---------------------------//
 
 void SDLex_RenderDrawSprite(SDL_Renderer* renderer, SDLex_Sprite* sprite) {
     int tw = sprite->texture_rect.w;
@@ -88,6 +95,10 @@ void SDLex_RenderDrawSpriteAt(SDL_Renderer* renderer, SDLex_Sprite* sprite, int 
     
     SDL_RenderCopyF(renderer, sprite->texture, &source, &dest);
 }
+
+//------------------------------------------------//
+
+//---------------TEXT---------------------------//
 
 SDLex_Text* SDLex_CreateText(SDL_Renderer* renderer, char* string, TTF_Font* font) {
     SDL_Surface* text_surf = TTF_RenderText_Blended_Wrapped(font, string, (SDL_Color){0, 0, 0, 0}, 300);
@@ -134,6 +145,10 @@ void SDLex_DestroyText(SDLex_Text* text) {
     SDL_DestroyTexture(text->drawable.texture);
     free(text);
 }
+
+//------------------------------------------------//
+
+//---------------GRID---------------------------//
 
 SDL_Point SDLex_GridGetSize(SDLex_Grid* grid) {
     return (SDL_Point) {
@@ -201,3 +216,4 @@ SDL_Rect SDLex_GridGetCellRect(SDLex_Grid* g, int cx, int cy) {
     return (SDL_Rect){x, y, w, h};
 
 }
+//------------------------------------------------//
