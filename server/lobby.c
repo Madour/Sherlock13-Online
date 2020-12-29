@@ -27,13 +27,27 @@ void Lobby_reset(Lobby* lobby) {
     lobby->locked = false;
 }
 
+void Lobby_addNewPlayer(Lobby* lobby, Player* player) {
+    player->lobby = lobby;
+    for (int i = 0; i < 4; ++i) {
+        if (lobby->players[i] == NULL) {
+            lobby->players[i] = player;
+            player->index = i;
+            break;
+        }
+    }
+    // reset items count
+    for (int i = 0; i < 8; ++i)
+        player->items_count[i] = 0;
+    player->leave = false;
+    lobby->players_nb++;
+}
+
 void Lobby_startGame(Lobby* lobby) {
     lobby->available = false;
     lobby->state = LobbyStateGameStarted;
     lobby->turn = 0;
 
-    //MsgQueue_clear(&lobby->queue);
-    
     // broadcast GameStart message to lobby
     char buffer[256];
     memset(buffer, 0, sizeof(buffer));
@@ -55,7 +69,10 @@ void Lobby_startGame(Lobby* lobby) {
     // for each player ...
     for (int i = 0; i < 4; ++i) {
         printf("         > Player %d:%s cards : \n", lobby->index, lobby->players[i]->name);
-        // ... choose 3 random cards
+        // .. reset item count ...
+        for (int j = 0; j < 8; ++j)
+            lobby->players[i]->items_count[j] = 0;
+        // ... and choose 3 random cards
         for (int j = 0; j < 3; ++j) {
             int card;
             bool found = false;
@@ -85,7 +102,7 @@ void Lobby_startGame(Lobby* lobby) {
 
     printf("     > Lobby %d : Suspect is \"%s\" (%d)\n\n", lobby->index, DATA.characters_names[lobby->suspect], lobby->suspect);
 
-
+    Lobby_printPlayers(lobby);
 }
 
 void Lobby_sendMsgs(Lobby* lobby, Player* player) {
@@ -94,19 +111,6 @@ void Lobby_sendMsgs(Lobby* lobby, Player* player) {
         deb_log("[SIGN] Lobby %d : Player %s is sending signal to lobby (%lu)\n", lobby->index, player->name, lobby->thread);
     else
         deb_log("[SIGN] Lobby %d : Signal was sent\n", lobby->index);
-}
-
-void Lobby_rearrangeIndices(Lobby* lobby, int* index) {
-    for (int i = *index; i < 2; ++i) {
-        lobby->players[i] = lobby->players[i+1];
-        if (lobby->players[i])
-            lobby->players[i]->index--;
-        (*index)++;
-    }
-    lobby->players_nb--;
-    for (int i = lobby->players_nb; i < 4; ++i) {
-        lobby->players[i] = NULL;
-    }
 }
 
 void Lobby_lock(Lobby* lobby, Player* player) {
@@ -168,6 +172,24 @@ inline void Lobby_waitAcks(Lobby* lobby) {
     }
     if (!lobby->locked)
         Lobby_unlock(lobby, NULL);
+}
+
+void Lobby_printPlayers(Lobby* lobby) {
+    char res[256] = "";
+    char buffer[256] = "";
+    sprintf(buffer, "     > Lobby %d : Players :\n", lobby->index);
+    strcat(res, buffer);
+    for (int i = 0; i < 4; ++i) {
+        if (lobby->players[i] != NULL) {
+            sprintf(buffer, "        - %i - %s : ", i, lobby->players[i]->name);
+            strcat(res, buffer);
+            for (int j = 0; j < 8; ++j) {
+                sprintf(buffer, "%d %s", lobby->players[i]->items_count[j], j==7?"\n":"");
+                strcat(res, buffer);
+            }
+        }
+    }
+    printf("%s\n", res);
 }
 
 void* manage_lobby_thread(void* lobby) {
@@ -256,10 +278,12 @@ void* manage_player_thread(void* player) {
                     this_lobby->available = true;
                 }
                 else {
-                    printf("     > Lobby %d : Player %s has quit, %d players remaning in lobby %d\n\n",
+                    printf("     > Lobby %d : Player %s left lobby, %d players remaning in lobby %d\n\n",
                             this_lobby->index, this_player->name, this_lobby->players_nb-1, this_lobby->index);
-                    Lobby_rearrangeIndices(this_lobby, &this_player->index);
-                    
+                    if (this_lobby->players[this_player->index] == this_player) {
+                        this_lobby->players_nb--;
+                        this_lobby->players[this_player->index] = NULL;
+                    }
                     tmp[0] = (char)WaitingPlayers;
                     tmp[1] = this_lobby->players_nb+'0';
                     tmp[2] = '\0';
@@ -279,6 +303,7 @@ void* manage_player_thread(void* player) {
                 }
             }
             else if (this_lobby->state == LobbyStateGameEnded) {
+                printf("     > Lobby %d : Player %s left lobby on ending screen.\n\n", this_lobby->index, this_player->name);
                 this_lobby->players_nb--;
                 if (this_lobby->players_nb == 0) {
                     this_lobby->available = true;
@@ -287,10 +312,11 @@ void* manage_player_thread(void* player) {
             }
             else if (this_lobby->state == LobbyStateReplay) {
                 // a player quit when trying to replay, cancel replay
-                this_lobby->players_nb = 0;
-                for (int i = 0; i < 4; ++i)
-                    if (this_lobby->players[i] != NULL) 
-                        this_lobby->players_nb++;
+                printf("     > Lobby %d : Player %s did not replay !\n\n", this_lobby->index, this_player->name);
+                if (this_lobby->players[this_player->index] == this_player) {
+                    this_lobby->players_nb--;
+                    this_lobby->players[this_player->index] = NULL;
+                }
                 this_lobby->available = true;
                 this_lobby->state = LobbyStateWaiting;
             }
@@ -369,26 +395,25 @@ void* manage_player_thread(void* player) {
                 case Replay:
                     printf("     > Lobby %d : %s wants to play again\n\n", this_lobby->index, this_player->name);
                     if (this_lobby->state == LobbyStateGameEnded) {
-                        this_lobby->state = LobbyStateReplay;
+                        if (this_lobby->players_nb == 4)
+                            this_lobby->state = LobbyStateReplay;
+                        else {
+                            this_lobby->state = LobbyStateWaiting;
+                            this_lobby->available = true;
+                        }
+                        this_lobby->players_nb = 0;
                         for (int i = 0; i < 4; ++i)
                             this_lobby->players[i] = NULL;
                     }
-                    int i = 0;
-                    for (i = 0; i < 4; ++i) {
-                        if (this_lobby->players[i] == NULL) {
-                            this_player->index = i;
-                            this_lobby->players[i] = this_player;
-                            break;
-                        }
-                        tmp[0] = (char)WaitingPlayers;
-                        tmp[1] = (i+1)+'0';
-                        tmp[2] = '\0';
-                        MsgQueue_append(&this_lobby->queue, tmp, 3, -1);
-                        if (i == 3) {
-                            Lobby_startGame(this_lobby);
-                        }
+                    Lobby_addNewPlayer(this_lobby, this_player);
+                    tmp[0] = (char)WaitingPlayers;
+                    tmp[1] = this_lobby->players_nb+'0';
+                    tmp[2] = '\0';
+                    MsgQueue_append(&this_lobby->queue, tmp, 3, -1);
+                    if (this_lobby->players_nb == 4) {
+                        Lobby_startGame(this_lobby);
+                        this_lobby->turn = -1;
                     }
-
                     break;
 
                 default:

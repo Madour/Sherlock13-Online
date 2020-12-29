@@ -9,7 +9,6 @@ static void Game_initTexts(Game* game);
 
 void Game_init(Game* game, SDL_Renderer* renderer) {
     game->data = &DATA;
-    Game_reset(game);
 
     // renderer data
     game->renderer = renderer;
@@ -36,6 +35,8 @@ void Game_init(Game* game, SDL_Renderer* renderer) {
     
     // create the texts
     Game_initTexts(game);
+
+    Game_reset(game);
 }
 
 void Game_reset(Game* game) {
@@ -44,7 +45,6 @@ void Game_reset(Game* game) {
     game->mouse_click = false;
     game->mouse_pos.x = game->mouse_pos.y = 0;
     
-    game->connected = false;
     game->started = false;
     memset(game->players, 0, sizeof(Player)*4);
     game->players_nb = 0;
@@ -62,6 +62,14 @@ void Game_reset(Game* game) {
 
     memset(&game->selected, -1, sizeof(struct Selection));
     memset(&game->hovered, -1, sizeof(struct Hovering));
+
+    for (int i = 0; i < 4; ++i) {
+        if (game->texts.players_names[i] != NULL)
+            SDLex_DestroyText(game->texts.players_names[i]);
+        game->texts.players_names[i] = NULL;
+    }
+    if(game->texts.action_description != NULL)
+        SDLex_TextSetString(game->texts.action_description, "");
 }
 
 void Game_initTextures(Game* game) {

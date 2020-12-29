@@ -228,11 +228,7 @@ void* wait_server_msgs_thread(void* args) {
 
             case QuitLobby:
                 Game_reset(&game);
-                for (int i = 0; i < 4; ++i) {
-                    if (game.texts.players_names[i] != NULL)
-                        SDLex_DestroyText(game.texts.players_names[i]);
-                    game.texts.players_names[i] = NULL;
-                }
+                game.connected = false;
                 break;
 
             default:
@@ -355,10 +351,18 @@ int main(int argc, char* argv[]) {
             }
             else if (game.ended) {
                 // afficher le bouton go pour replay
-            }
-            else if (game.turn == game.my_index) {
                 SDL_Rect cell = SDLex_SpriteGetBounds(&game.sprites.btn_go);
-                if (SDL_PointInRect(&game.mouse_pos, &cell) && game.started && !game.ended) {
+                if (SDL_PointInRect(&game.mouse_pos, &cell)) {
+                    char buffer[2];
+                    buffer[0] = Replay;
+                    buffer[1] = '\0';
+                    send_msg(socket_fd, buffer, 2);
+                    Game_reset(&game);
+                }
+            }
+            else if (game.started && game.turn == game.my_index) {
+                SDL_Rect cell = SDLex_SpriteGetBounds(&game.sprites.btn_go);
+                if (SDL_PointInRect(&game.mouse_pos, &cell)) {
                     if (game.selected.item != -1 || game.selected.player != -1 || game.selected.character != -1) {
                         if (game.selected.player > -1 && game.selected.item > -1) {
                             // send AskPlayer

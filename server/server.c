@@ -165,7 +165,6 @@ int main(int argc, char* argv[]) {
             
             // get player pointer
             Player* new_player = (Player*)malloc(sizeof(Player));
-            lobby->players[lobby->players_nb] = new_player;
 
             // fill new player client info
             new_player->client.sfd = client_sfd;
@@ -173,22 +172,21 @@ int main(int argc, char* argv[]) {
             new_player->client.port = ntohs(client_addr.sin_port);
             new_player->client.ack = false;
             
-            // fill new player lobby info
-            new_player->lobby = lobby;
-            new_player->index = lobby->players_nb;
-            for (int i = 0; i < 8; ++i)
-                new_player->items_count[i] = 0;
-            strcpy(new_player->name, "");
-            new_player->leave = false;
+            strcpy(new_player->name, "???");
             
+            // add new player to lobby
+            Lobby_lock(lobby, &player_server);
+            Lobby_addNewPlayer(lobby, new_player);
+            Lobby_unlock(lobby, &player_server);
+
             // first message received from new client is player name
             char buffer[256];
             recv_msg(new_player, buffer, sizeof(char)*32);
             strcpy(new_player->name, buffer);
-
             //send ack
             send_msg(new_player, "ack", 4);
 
+            
             printf("     > New player name : \"%s\"\n     > Joined lobby number %d\n\n", new_player->name, lobby_index);
 
             // create thread for the newly connected player
@@ -196,8 +194,6 @@ int main(int argc, char* argv[]) {
             pthread_create(&player_thread, NULL, manage_player_thread, new_player);
             pthread_detach(player_thread);
             deb_log("[INFO] Started thread for player \"%s\" (%ld) \n", new_player->name, player_thread);
-
-            lobby->players_nb++;
 
             deb_log("[INFO] Server : Number of players connected to lobby %d : %d\n", lobby_index, lobby->players_nb);
 
