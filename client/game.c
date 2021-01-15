@@ -355,7 +355,7 @@ void Game_render(Game* game) {
         for (int i = 0; i < 3; ++i) 
             if (game->sprites.cards[i].texture)
                SDLex_RenderDrawSprite(renderer, &game->sprites.cards[i]);
-        // draw go button when it is my turn to play
+        // draw go button when it is my turn to play or when game ended to replay
         if (game->ended || game->turn == game->my_index) {
             SDLex_RenderDrawSprite(renderer, &game->sprites.btn_go);
         }

@@ -40,7 +40,7 @@ struct sigaction default_sigint;
 // server will most likely be stopped by Ctrl+C (SIGINT)
 void exit_server(int sig_no) {
     printf("\n[INFO] CTRL-C pressed (SIGINT). Closing server.\n");
-    // join lobby threads
+    // tell lobby threads to quit and wait them to join the main thread
     printf("[INFO] Server : Waiting lobbies threads to terminate and join\n\n");
     for (int i = 0; i < MAX_LOBBIES; ++i) {
         lobbies_array[i].quit = true;
@@ -98,7 +98,6 @@ int main(int argc, char* argv[]) {
         .ai_socktype = SOCK_STREAM,
         .ai_protocol = IPPROTO_TCP
     };
-    
     getaddrinfo(NULL, argv[1], &hints, &server_ai);
 
     // bind server socket
@@ -122,14 +121,14 @@ int main(int argc, char* argv[]) {
         lobbies_array[i].index = i;
         Lobby_reset(&lobbies_array[i]);
         pthread_t lobby_thread;
-        pthread_create(&lobby_thread, NULL, manage_lobby_thread, &lobbies_array[i]);
+        pthread_create(&lobby_thread, NULL, lobby_thread_func, &lobbies_array[i]);
         lobbies_array[i].thread = lobby_thread;
         printf("\r[INFO] Thread %i/%ld created.%s", i+1, MAX_LOBBIES, debug ? "\n\n" : "");
         fflush(stdout);
     }
     printf("%s[INFO] Server : Thread pool created. \n\n", debug ? "":"\n\n");
 
-    
+    // main server loop
     while (1) {
         // wait for new client connection and accept it
         struct sockaddr_in client_addr;
@@ -197,7 +196,7 @@ int main(int argc, char* argv[]) {
 
             // create thread for the newly connected player
             pthread_t player_thread;
-            pthread_create(&player_thread, NULL, manage_player_thread, new_player);
+            pthread_create(&player_thread, NULL, player_thread_func, new_player);
             pthread_detach(player_thread);
             deb_log("[INFO] Started thread for player \"%s\" (%ld) \n", new_player->name, player_thread);
 
@@ -209,7 +208,7 @@ int main(int argc, char* argv[]) {
             buffer[2] = '\0';
             Lobby_lock(lobby, "Server");
             MsgQueue_append(&lobby->queue, buffer, 3, -1);
-            // if this player is the fourth, start the game
+            // if this player is the last one, start the game
             if (lobby->players_nb == 4)
                 Lobby_startGame(lobby);
             Lobby_sendMsgs(lobby, "Server");

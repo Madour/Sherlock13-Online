@@ -37,6 +37,8 @@ int socket_fd = -1;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 Game game;
 
+// main starts at line ~260
+
 // utility functions for sending and receiving message from server
 int send_msg(int sfd, void* buffer, int size) {
     int r = write(sfd, buffer, size);
@@ -81,10 +83,10 @@ int recv_msg(int sfd, void* buffer, int size) {
 }
 
 // wait for server messages in this thread
-void* wait_server_msgs_thread(void* args) {
+void* wait_server_msgs_thread_func(void* args) {
     char buffer[256];
     char tmp[256];
-    int pl, it;
+    int pl, it; // player and item temporary variables
     while(1) {
         if (!game.connected)
             break;
@@ -102,6 +104,7 @@ void* wait_server_msgs_thread(void* args) {
         memset(tmp, 0, sizeof(tmp));
 
         pthread_mutex_lock(&mutex);
+        // switch message command
         switch (buffer[0]) {
 
             case WaitingPlayers:
@@ -323,8 +326,8 @@ int main(int argc, char* argv[]) {
         Game_update(&game);
 
         if (game.mouse_click) {
-            // connect to server when button pressed : 
             if (!game.connected) {
+                // connect to server when button pressed : 
                 SDL_Rect cell = SDLex_SpriteGetBounds(&game.sprites.btn_connect);
                 if (SDL_PointInRect(&game.mouse_pos, &cell)) {
                     // create socket and connect to server
@@ -354,7 +357,7 @@ int main(int argc, char* argv[]) {
 
                     // start thread asap
                     pthread_t thread;
-                    pthread_create(&thread, NULL, wait_server_msgs_thread, NULL);
+                    pthread_create(&thread, NULL, wait_server_msgs_thread_func, NULL);
                     printf("[INFO] Waiting for server messages in thread %lu \n\n", thread);
                 }
             }
@@ -394,7 +397,7 @@ int main(int argc, char* argv[]) {
                             send_msg(socket_fd, buffer, 4);
                         }
                         else if (game.selected.character > -1){
-                            // seld GuessSuspect
+                            // send GuessSuspect
                             char buffer[4];
                             buffer[0] = GuessSuspect;
                             buffer[1] = game.my_index+'0';

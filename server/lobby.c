@@ -54,7 +54,7 @@ void Lobby_startGame(Lobby* lobby) {
     lobby->state = LobbyStateGameStarted;
     lobby->turn = 0;
 
-    // broadcast GameStart message to lobby
+    // create GameStart message (composed of players names)
     char buffer[256];
     memset(buffer, 0, sizeof(buffer));
     buffer[0] = (char)GameStart;
@@ -76,8 +76,7 @@ void Lobby_startGame(Lobby* lobby) {
     for (int i = 0; i < 4; ++i) {
         printf("         > Player %d:%s cards : \n", lobby->index, lobby->players[i]->name);
         // .. reset item count ...
-        for (int j = 0; j < 8; ++j)
-            lobby->players[i]->items_count[j] = 0;
+        memset(lobby->players[i]->items_count, 0, 8*sizeof(int));
         // ... and choose 3 random cards
         for (int j = 0; j < 3; ++j) {
             int card;
@@ -102,6 +101,7 @@ void Lobby_startGame(Lobby* lobby) {
         MsgQueue_append(&lobby->queue, buffer, 5, i);
         printf("\n");
     }
+    // store the suspect card
     for (int i = 0; i < 13; ++i)
         if ( ((taken_cards >> i)&1) == 0 )
             lobby->suspect = i;
@@ -198,7 +198,7 @@ void Lobby_printPlayers(Lobby* lobby) {
     printf("%s\n", res);
 }
 
-void* manage_lobby_thread(void* lobby) {
+void* lobby_thread_func(void* lobby) {
     Lobby* this_lobby = (Lobby*)lobby;
     MsgQueue* msg_queue = &this_lobby->queue;
 
@@ -218,6 +218,7 @@ void* manage_lobby_thread(void* lobby) {
             break;
         }
 
+        // send all the messages in the queue
         while (msg_queue->size > 0) {
             MsgNode* msg = MsgQueue_front(msg_queue);
             if (msg->dest == -1) {
@@ -247,7 +248,7 @@ void* manage_lobby_thread(void* lobby) {
     pthread_exit(NULL);
 }
 
-void* manage_player_thread(void* player) {
+void* player_thread_func(void* player) {
     Player* this_player = (Player*)player;
     Lobby* this_lobby = this_player->lobby;
     
@@ -264,6 +265,7 @@ void* manage_player_thread(void* player) {
         }
         msg_size = recv_msg(this_player, buffer, sizeof(buffer));
         
+        // failed to read message from player, they probably disconnected
         if (msg_size <= 0) {
             deb_log("[INFO] Failed to read from player %s:%u\n[INFO] Closing connection with player %s from lobby %d.\n", this_player->client.ip, this_player->client.port, this_player->name, this_lobby->index);
             if (this_lobby->players_nb == 0 || this_player->leave) {
@@ -290,6 +292,7 @@ void* manage_player_thread(void* player) {
                         this_lobby->players_nb--;
                         this_lobby->players[this_player->index] = NULL;
                     }
+                    // update the number of players in lobby and inform other players
                     tmp[0] = (char)WaitingPlayers;
                     tmp[1] = this_lobby->players_nb+'0';
                     tmp[2] = '\0';
@@ -309,6 +312,7 @@ void* manage_player_thread(void* player) {
                 }
             }
             else if (this_lobby->state == LobbyStateGameEnded) {
+                // player quit on end game screen (before someone pressed replay)
                 printf("     > Lobby %d : Player %s left lobby on ending screen.\n\n", this_lobby->index, this_player->name);
                 this_lobby->players_nb--;
                 if (this_lobby->players_nb == 0) {
@@ -326,6 +330,7 @@ void* manage_player_thread(void* player) {
                 this_lobby->available = true;
                 this_lobby->state = LobbyStateWaiting;
             }
+            // if there are messages to send, send them
             if (this_lobby->queue.size > 0)
                 Lobby_sendMsgs(this_lobby, this_player->name);
             this_lobby->players[this_player->index] = NULL;
@@ -333,12 +338,14 @@ void* manage_player_thread(void* player) {
             break;
         }
         else if (strcmp(buffer, "ack") == 0){
+            // player acked, update ack flag
             this_player->client.ack = (strcmp(buffer, "ack") == 0);
         }
         else {
             int pl;
             int it;
             Lobby_lock(this_lobby, this_player->name);
+            // switch first char of message to find out the command
             switch (buffer[0]) {
                 case AskPlayer:
                     pl = (int)(buffer[2]-'0');
@@ -400,6 +407,7 @@ void* manage_player_thread(void* player) {
 
                 case Replay:
                     printf("     > Lobby %d : %s wants to play again\n\n", this_lobby->index, this_player->name);
+                    // update lobby state accordingly
                     if (this_lobby->state == LobbyStateGameEnded) {
                         if (this_lobby->players_nb == 4)
                             this_lobby->state = LobbyStateReplay;
@@ -426,8 +434,8 @@ void* manage_player_thread(void* player) {
                     break;
             }
 
+            // calculate next turn only if lobby is in game
             if (this_lobby->state == LobbyStateGameStarted) {
-                // next turn
                 this_lobby->turn = (this_lobby->turn+1)%4;
                 // skip players with penalities
                 while ( ((this_lobby->penalities >> this_lobby->turn)&1) == 1 ) {
@@ -439,7 +447,8 @@ void* manage_player_thread(void* player) {
                 tmp[2] = '\0';
                 MsgQueue_append(&this_lobby->queue, tmp, 3, -1);
             }
-
+            
+            // tell lobby to send the messages
             Lobby_sendMsgs(this_lobby, this_player->name);
             Lobby_unlock(this_lobby, this_player->name);
         }

@@ -106,6 +106,11 @@ The game uses a simple text protocol with 13 different commands (all clients mea
 | `QuitLobby` | Server | One client | "Q" | Tells a client to leave the lobby |
 
 
+### Limitations
+
+Two players in the same lobby must **not** have the same name ! Player names in a Lobby must be unique.
+
+This can be improved by using unique identifiers for each new connection.
 
 ### Possible improvements
 
