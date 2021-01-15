@@ -73,11 +73,11 @@ void Lobby_startGame(Lobby* lobby);
  * Send a cond signal to lobby thread
  * Lobby will send all the messages in its queue to the clients
  */
-void Lobby_sendMsgs(Lobby* lobby, Player* player);
+void Lobby_sendMsgs(Lobby* lobby, const char* name);
 
 // lock unlock Lobby mutex
-void Lobby_lock(Lobby* lobby, Player* player);
-void Lobby_unlock(Lobby* lobby, Player* player);
+void Lobby_lock(Lobby* lobby, const char* name);
+void Lobby_unlock(Lobby* lobby, const char* name);
 
 void Lobby_broadcast(Lobby* lobby, char* msg, unsigned int size);
 void Lobby_waitAcks(Lobby* lobby);

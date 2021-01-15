@@ -1,10 +1,10 @@
 # SH13 Online
 
-> This markdown file uses mermaid for class diagrams and js-sequence for sequence diagrams, you can look at the generated README.html
+> This markdown file uses js-sequence for sequence diagrams, a generated README.html is provided
 
 ### Build and run
 
-The makefile is provided. Run make at project root. Programs will be created in bin folder.
+The makefile is provided. Run `make` at project root. Programs will be created in bin folder.
 
 For server : `./server.exe <port> [-d|--debug]`
 
@@ -18,20 +18,13 @@ On launch, the server creates 32 Lobby structs and a thread for each one.
 
 Each Lobby has 4 pointers to Player structs.
 
-```mermaid
-classDiagram
-	Server --> "32" Lobby : Contains 32
-	Lobby --> "4" Player : Contains 4
-```
-
 When a client connects to the server :
 1. Server looks for an available lobby
 2. A new player struct is created dynamically and added to the lobby
 3. A detached thread is created to wait for player messages
-4. Server goes back to listen for connections
+4. Server goes back to listen for new connections
 
 When 4 players are in a lobby, the last player to join will notify the lobby thread and the game will start.
-
 
 
 Thanks to multi-threading, the server can handle 32 totally independent lobbies.
@@ -39,7 +32,6 @@ Thanks to multi-threading, the server can handle 32 totally independent lobbies.
 Player threads wait for messages from their clients, and communicate with their Lobby thread via cond signals.
 
 Lobby thread will then send the correct response to its 4 clients (broadcast) or to just one client.
-
 
 
 
@@ -95,7 +87,7 @@ Note over Client1, Client4: -\nGame takes place\n-
 
 ```
 
-The game uses a simple text protocol with 13 different commands : 
+The game uses a simple text protocol with 13 different commands (all clients means all clients of a same lobby): 
 
 | Command name | Emitter | Receiver | Syntax | Description |
 | ------------ | ------- | ------ | ----------- | ------------ |
@@ -118,5 +110,8 @@ The game uses a simple text protocol with 13 different commands :
 ### Possible improvements
 
 - Use a thread pool for players. Every time a new player connects, assign a worker to them. When the player closes the connection, the worker is released and put back into the pool.
-- Use a queue to store available lobbies, this way when a client connects the server can just get the front lobby in the queue and add the player. If the Lobby has 4 players, pop the first element of the queue. When a lobby finished its game, append the lobby to the queue.
+- Use a queue to store available lobbies :
+  - when a client connects, the server can just get the front lobby in the queue and add the player to it
+  - if the Lobby has 4 players, pop the first element of the queue
+  - when a lobby finished its game, append the lobby to the queue
 - Use a circular list to store players pointers in the lobby instead of an array. This way the turn field can be a pointer to player pointer. When it is next turn, the turn pointer would point to the next element of the list .

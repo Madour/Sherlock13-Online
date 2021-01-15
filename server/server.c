@@ -29,7 +29,6 @@
 
 
 Lobby lobbies_array[MAX_LOBBIES];
-Player player_server;
 
 extern bool debug;
 int server_sfd = -1;
@@ -45,9 +44,9 @@ void exit_server(int sig_no) {
     printf("[INFO] Server : Waiting lobbies threads to terminate and join\n\n");
     for (int i = 0; i < MAX_LOBBIES; ++i) {
         lobbies_array[i].quit = true;
-        Lobby_lock(&lobbies_array[i], &player_server);
-        Lobby_sendMsgs(&lobbies_array[i], &player_server);
-        Lobby_unlock(&lobbies_array[i], &player_server);
+        Lobby_lock(&lobbies_array[i], "Server");
+        Lobby_sendMsgs(&lobbies_array[i], "Server");
+        Lobby_unlock(&lobbies_array[i], "Server");
         pthread_join(lobbies_array[i].thread, NULL);
         printf("\r[INFO] Thread %i/%ld deleted.%s", i+1, MAX_LOBBIES, debug ? "\n\n" : "");
         fflush(stdout);
@@ -65,7 +64,6 @@ void exit_server(int sig_no) {
 int main(int argc, char* argv[]) {
     srand(time(NULL));
     debug = false;
-    strcpy(player_server.name, "Server");
 
     if (argc < 2) {
         printf("Commande usage : ./server <port_number> \n");
@@ -183,9 +181,9 @@ int main(int argc, char* argv[]) {
             strcpy(new_player->name, "???");
             
             // add new player to lobby
-            Lobby_lock(lobby, &player_server);
+            Lobby_lock(lobby, "Server");
             Lobby_addNewPlayer(lobby, new_player);
-            Lobby_unlock(lobby, &player_server);
+            Lobby_unlock(lobby, "Server");
 
             // first message received from new client is player name
             char buffer[256];
@@ -209,13 +207,13 @@ int main(int argc, char* argv[]) {
             buffer[0] = (char)WaitingPlayers;
             buffer[1] = (char)lobby->players_nb+'0';
             buffer[2] = '\0';
-            Lobby_lock(lobby, &player_server);
+            Lobby_lock(lobby, "Server");
             MsgQueue_append(&lobby->queue, buffer, 3, -1);
             // if this player is the fourth, start the game
             if (lobby->players_nb == 4)
                 Lobby_startGame(lobby);
-            Lobby_sendMsgs(lobby, &player_server);
-            Lobby_unlock(lobby, &player_server);
+            Lobby_sendMsgs(lobby, "Server");
+            Lobby_unlock(lobby, "Server");
         }
     }
 

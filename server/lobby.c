@@ -111,28 +111,28 @@ void Lobby_startGame(Lobby* lobby) {
     Lobby_printPlayers(lobby);
 }
 
-void Lobby_sendMsgs(Lobby* lobby, Player* player) {
+void Lobby_sendMsgs(Lobby* lobby, const char* name) {
     pthread_cond_signal(&lobby->cond);
-    if (player != NULL)
-        deb_log("[SIGN] Lobby %d : Player %s is sending signal to lobby (%lu)\n", lobby->index, player->name, lobby->thread);
+    if (name != NULL)
+        deb_log("[SIGN] Lobby %d : %s is sending signal to lobby (%lu)\n", lobby->index, name, lobby->thread);
     else
         deb_log("[SIGN] Lobby %d : Signal was sent\n", lobby->index);
 }
 
-void Lobby_lock(Lobby* lobby, Player* player) {
-    if (player != NULL)
-        deb_log("[LOCK] Lobby %d : Player %s waiting for Mutex lock\n", lobby->index, player->name);
+void Lobby_lock(Lobby* lobby, const char* name) {
+    if (name != NULL)
+        deb_log("[LOCK] Lobby %d : %s waiting for Mutex lock\n", lobby->index, name);
     else
         deb_log("[LOCK] Lobby %d : Waiting for Mutex lock\n", lobby->index);
     // wait the lobby to be unlocked
     while(lobby->locked);
     pthread_mutex_lock(&lobby->mutex);
     lobby->locked = true;
-    deb_log("[LOCK] Lobby %d is locked by %s\n", lobby->index, player == NULL ? "lobby" : player->name);
+    deb_log("[LOCK] Lobby %d is locked by %s\n", lobby->index, name == NULL ? "lobby" : name);
 }
 
-void Lobby_unlock(Lobby* lobby, Player* player) {
-    deb_log("[LOCK] Lobby %d is unlocked by %s\n", lobby->index, player == NULL ? "lobby" : player->name);
+void Lobby_unlock(Lobby* lobby, const char* name) {
+    deb_log("[LOCK] Lobby %d is unlocked by %s\n", lobby->index, name == NULL ? "lobby" : name);
     pthread_mutex_unlock(&lobby->mutex);
     lobby->locked = false;
 }
@@ -271,10 +271,10 @@ void* manage_player_thread(void* player) {
                 break;
             }
                 
-            Lobby_lock(this_lobby, this_player);
+            Lobby_lock(this_lobby, this_player->name);
             if (this_player->leave) {
                 printf("     > Lobby %d : Player %s is leaving.\n\n", this_lobby->index, this_player->name);
-                Lobby_unlock(this_lobby, this_player);
+                Lobby_unlock(this_lobby, this_player->name);
                 break;
             }
             if (this_lobby->state == LobbyStateWaiting) {
@@ -327,9 +327,9 @@ void* manage_player_thread(void* player) {
                 this_lobby->state = LobbyStateWaiting;
             }
             if (this_lobby->queue.size > 0)
-                Lobby_sendMsgs(this_lobby, this_player);
+                Lobby_sendMsgs(this_lobby, this_player->name);
             this_lobby->players[this_player->index] = NULL;
-            Lobby_unlock(this_lobby, this_player);
+            Lobby_unlock(this_lobby, this_player->name);
             break;
         }
         else if (strcmp(buffer, "ack") == 0){
@@ -338,7 +338,7 @@ void* manage_player_thread(void* player) {
         else {
             int pl;
             int it;
-            Lobby_lock(this_lobby, this_player);
+            Lobby_lock(this_lobby, this_player->name);
             switch (buffer[0]) {
                 case AskPlayer:
                     pl = (int)(buffer[2]-'0');
@@ -440,8 +440,8 @@ void* manage_player_thread(void* player) {
                 MsgQueue_append(&this_lobby->queue, tmp, 3, -1);
             }
 
-            Lobby_sendMsgs(this_lobby, this_player);
-            Lobby_unlock(this_lobby, this_player);
+            Lobby_sendMsgs(this_lobby, this_player->name);
+            Lobby_unlock(this_lobby, this_player->name);
         }
     }
     close(this_player->client.sfd);
