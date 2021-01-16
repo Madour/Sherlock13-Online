@@ -33,6 +33,7 @@ char* host_name;
 char* port;
 char* my_name;
 int socket_fd = -1;
+pthread_t thread = -1;
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 Game game;
@@ -249,7 +250,6 @@ void* wait_server_msgs_thread_func(void* args) {
 
         pthread_mutex_unlock(&mutex);
     }
-    close(socket_fd);
     pthread_exit(NULL);
 }
 
@@ -312,6 +312,8 @@ int main(int argc, char* argv[]) {
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
                 game.quit = true;
+                if (thread != -1)
+                    pthread_cancel(thread);
             }
             else if (event.type == SDL_MOUSEMOTION) {
                 SDL_GetMouseState(&game.mouse_pos.x, &game.mouse_pos.y);
@@ -356,7 +358,6 @@ int main(int argc, char* argv[]) {
                     recv_msg(socket_fd, buffer, 4);
 
                     // start thread asap
-                    pthread_t thread;
                     pthread_create(&thread, NULL, wait_server_msgs_thread_func, NULL);
                     printf("[INFO] Waiting for server messages in thread %lu \n\n", thread);
                 }
@@ -433,7 +434,8 @@ int main(int argc, char* argv[]) {
     SDL_Quit();
 
     freeaddrinfo(server_ai);
-    close(socket_fd);
+    if (socket_fd != -1)
+        close(socket_fd);
 
     return EXIT_SUCCESS;
 }

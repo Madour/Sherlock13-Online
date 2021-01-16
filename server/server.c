@@ -165,7 +165,7 @@ int main(int argc, char* argv[]) {
 
         Lobby* lobby = &lobbies_array[lobby_index];
 
-        // security check, but should always be true
+        // security check, but test is always true
         if (lobby->players_nb < 4) {
             
             // create a new player
@@ -191,7 +191,6 @@ int main(int argc, char* argv[]) {
             //send ack
             send_msg(new_player, "ack", 4);
 
-            
             printf("     > New player name : \"%s\"\n     > Joined lobby number %d\n\n", new_player->name, lobby_index);
 
             // create thread for the newly connected player

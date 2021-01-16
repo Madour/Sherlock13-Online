@@ -6,9 +6,9 @@
 
 The makefile is provided. Run `make` at project root. Programs will be created in bin folder.
 
-For server : `./server.exe <port> [-d|--debug]`
+For server : `./server <port> [-d|--debug]`
 
-For client : `./client.exe <host> <port> [-d|--debug]`
+For client : `./client <host> <port> [-d|--debug]`
 
 Debug option will run the programs with a (*very*, at least for the server) verbose output.
 
